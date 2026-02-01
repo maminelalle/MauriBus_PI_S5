@@ -1,0 +1,161 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tableau de bord - Chauffeur</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="" crossorigin="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:#f7f8fb;color:#111827;margin:0;padding:0}
+        .container{max-width:1200px;margin:0 auto;padding:20px 16px}
+        header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;background:white;padding:20px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+        header h1{font-size:1.5rem;margin:0;color:#1e293b}
+        nav{display:flex;gap:16px;align-items:center}
+        nav a{text-decoration:none;color:#6b7280;font-size:0.95rem;transition:color 0.2s;padding:8px 12px;border-radius:6px}
+        nav a:hover{color:#2563eb;background:#f0f4f8}
+        .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+        .card{background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+        .card:nth-child(2){background:linear-gradient(135deg, #f093fb 0%, #f5576c 100%)}
+        .card:nth-child(3){background:linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)}
+        .card:nth-child(4){background:linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)}
+        .card h3{font-size:0.875rem;margin:0 0 12px;opacity:0.9}
+        .card .num{font-weight:700;font-size:2rem;line-height:1}
+        .panel{background:white;padding:20px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+        .panel h2{margin-top:0;margin-bottom:16px;color:#1e293b;font-size:1.1rem}
+        table{width:100%;border-collapse:collapse}
+        th{text-align:left;padding:12px;color:#6b7280;font-size:0.875rem;font-weight:600;background:#f8fafc}
+        td{padding:12px;border-top:1px solid #f3f4f6}
+        tr:hover{background:#f8fafc}
+        .muted{color:#6b7280;font-size:0.9rem}
+        .status-badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600}
+        .status-scheduled{background:#dbeafe;color:#1e40af}
+        .status-started{background:#fef08a;color:#854d0e}
+        .status-completed{background:#dcfce7;color:#166534}
+        .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-size:0.9rem;font-weight:500;transition:0.2s}
+        .btn-ghost{background:#f8fafc;border:1px solid #e6eef9;color:#1e293b}
+        .btn-ghost:hover{background:#f0f4f8}
+        .btn-primary{background:#2563eb;color:#fff}
+        .btn-primary:hover{background:#1d4ed8}
+        .btn-small{padding:6px 10px;font-size:0.85rem}
+        #map{height:320px;border-radius:12px;border:1px solid #e6eef9;margin-bottom:20px}
+        .sections{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+        nav a:last-child{color:#ef4444}
+        nav a:last-child:hover{background:#fee2e2;color:#dc2626}
+        @media(max-width:768px){header{flex-direction:column;text-align:center;gap:12px}.sections{grid-template-columns:1fr}nav{flex-wrap:wrap;justify-content:center}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-bus"></i> Tableau de bord</h1>
+            <nav>
+                <a href="{% url 'mauribus_app:driver_trips' %}"><i class="fas fa-route"></i> Mes trajets</a>
+                <a href="{% url 'mauribus_app:driver_buses' %}"><i class="fas fa-bus"></i> Mes bus</a>
+                <a href="{% url 'mauribus_app:driver_profile' %}"><i class="fas fa-user"></i> Profil</a>
+                <a href="{% url 'mauribus_app:driver_logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+            </nav>
+        </header>
+
+        <div class="cards">
+            <div class="card">
+                <h3><i class="fas fa-calendar-day"></i> Trajets aujourd'hui</h3>
+                <div class="num">{{ trips_today }}</div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-list"></i> Trajets assignés</h3>
+                <div class="num">{{ trips_assigned }}</div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-check-circle"></i> Complétés</h3>
+                <div class="num">{{ trips_completed }}</div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-spinner"></i> En cours</h3>
+                <div class="num">{{ trips_ongoing }}</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2><i class="fas fa-map-marker-alt"></i> Carte des trajets</h2>
+            <div id="map"></div>
+        </div>
+
+        <div class="sections">
+            <div class="panel">
+                <h2><i class="fas fa-history"></i> Trajets récents</h2>
+                <table>
+                    <thead><tr><th>Date</th><th>Ligne</th><th>Bus</th><th>État</th></tr></thead>
+                    <tbody>
+                        {% for trip in recent_trips %}
+                        <tr>
+                            <td class="muted">{% if trip.date %}{{ trip.date|date:'d/m H:i' }}{% else %}-{% endif %}</td>
+                            <td><strong>{{ trip.line.name }}</strong></td>
+                            <td>{{ trip.bus.name }}</td>
+                            <td>
+                                {% if trip.status == 'completed' %}
+                                    <span class="status-badge status-completed"><i class="fas fa-check"></i> Terminé</span>
+                                {% elif trip.status == 'started' %}
+                                    <span class="status-badge status-started"><i class="fas fa-play"></i> En cours</span>
+                                {% else %}
+                                    <span class="status-badge status-scheduled"><i class="fas fa-clock"></i> Planifié</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="muted" style="text-align:center;padding:24px">Aucun trajet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="panel">
+                <h2><i class="fas fa-rocket"></i> Actions rapides</h2>
+                <p class="muted">Accédez rapidement à vos trajets et gérez vos déplacements.</p>
+                <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+                    <a class="btn btn-ghost btn-small" style="text-align:center;text-decoration:none" href="{% url 'mauribus_app:driver_trips' %}"><i class="fas fa-route"></i> Voir mes trajets</a>
+                    <a class="btn btn-ghost btn-small" style="text-align:center;text-decoration:none" href="{% url 'mauribus_app:driver_buses' %}"><i class="fas fa-bus"></i> Mes autobus</a>
+                    <a class="btn btn-primary btn-small" style="text-align:center;text-decoration:none" href="{% url 'mauribus_app:driver_profile' %}"><i class="fas fa-user-circle"></i> Mon profil</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const lines = [
+            {% for line in lines %}
+            {
+                id: {{ line.id }},
+                name: "{{ line.name|escapejs }}",
+                start_lat: {{ line.start_lat|default:'null' }},
+                start_lng: {{ line.start_lng|default:'null' }},
+                end_lat: {{ line.end_lat|default:'null' }},
+                end_lng: {{ line.end_lng|default:'null' }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        const map = L.map('map');
+        let firstCoord = null;
+        for(const l of lines){
+            if(l.start_lat !== null && l.start_lng !== null){ firstCoord = [l.start_lat, l.start_lng]; break; }
+            if(l.end_lat !== null && l.end_lng !== null){ firstCoord = [l.end_lat, l.end_lng]; break; }
+        }
+        if(!firstCoord) firstCoord = [14.7, -17.44];
+        map.setView(firstCoord, 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        for(const l of lines){
+            if(l.start_lat && l.start_lng){ L.marker([l.start_lat, l.start_lng], {title:'Départ'}).addTo(map).bindPopup(`<b>${l.name}</b><br>Départ`); }
+            if(l.end_lat && l.end_lng){ L.marker([l.end_lat, l.end_lng], {title:'Arrivée'}).addTo(map).bindPopup(`<b>${l.name}</b><br>Arrivée`); }
+            if(l.start_lat && l.start_lng && l.end_lat && l.end_lng){
+                L.polyline([[l.start_lat,l.start_lng],[l.end_lat,l.end_lng]], {color:'#2563eb',weight:3,opacity:0.7}).addTo(map);
+            }
+        }
+    </script>
+</body>
+</html>

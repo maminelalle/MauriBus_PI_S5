@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Buses - Mauribus</title>
+
+<style>
+body { margin:0; font-family:'Segoe UI', sans-serif; background:#f0f2f5; }
+.admin-container { display:flex; min-height:100vh; }
+
+/* Sidebar */
+.sidebar { width:220px; background:#1e40af; color:white; display:flex; flex-direction:column; }
+.sidebar-header { padding:20px; font-size:1.5em; font-weight:bold; text-align:center; border-bottom:1px solid rgba(255,255,255,0.2); }
+.sidebar-menu { list-style:none; padding:0; margin:0; flex:1; }
+.sidebar-menu li a { display:block; padding:15px 20px; color:white; text-decoration:none; transition:0.2s; }
+.sidebar-menu li a:hover,
+.sidebar-menu li.active a { background:#3b82f6; }
+
+/* Main content */
+.main-content { flex:1; padding:20px; }
+.top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.top-bar h1 { font-size:1.75rem; color:#1e293b; }
+.add-btn { padding:10px 16px; background:#2563eb; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500; }
+.add-btn:hover { background:#1d4ed8; }
+
+/* Table */
+.table-container { background:white; padding:20px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); }
+#searchInput { width:100%; padding:10px 12px; margin-bottom:12px; border:1px solid #cbd5e1; border-radius:6px; }
+.bus-table { width:100%; border-collapse:collapse; }
+.bus-table th, .bus-table td { padding:12px; border-bottom:1px solid #e2e8f0; text-align:left; }
+.bus-table th { background:#f1f5f9; }
+
+.edit-btn, .delete-btn {
+    padding:6px 10px;
+    border-radius:6px;
+    border:none;
+    cursor:pointer;
+    font-size:0.875rem;
+    font-weight:500;
+    margin-right:6px;
+}
+.edit-btn { background:#3b82f6; color:white; }
+.edit-btn:hover { background:#2563eb; }
+.delete-btn { background:#ef4444; color:white; }
+.delete-btn:hover { background:#dc2626; }
+
+/* Responsive */
+@media (max-width:768px){
+.admin-container { flex-direction:column; }
+.sidebar { width:100%; flex-direction:row; overflow-x:auto; }
+.sidebar-menu li a { padding:10px; font-size:0.9rem; }
+.main-content { padding:10px; }
+.bus-table th, .bus-table td { padding:8px; font-size:0.875rem; }
+}
+</style>
+</head>
+
+<body>
+<div class="admin-container">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">Mauribus</div>
+        <ul class="sidebar-menu">
+            <li><a href="{% url 'mauribus_app:dashboard' %}">Dashboard</a></li>
+            <li class="active"><a href="{% url 'mauribus_app:bus_list' %}">Buses</a></li>
+            <li><a href="{% url 'mauribus_app:line_list' %}">Lines</a></li>
+            <li><a href="{% url 'mauribus_app:trip_list' %}">Trips</a></li>
+            <li><a href="{% url 'mauribus_app:user_list' %}">Users</a></li>
+            <li><a href="{% url 'mauribus_app:logout' %}">Logout</a></li>
+        </ul>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="top-bar">
+            <h1>Buses</h1>
+            <button class="add-btn" id="addBusBtn">Add Bus</button>
+        </div>
+
+        <input type="text" id="searchInput" placeholder="Rechercher un bus...">
+<div id="busForm" style="display:none; background:white; padding:20px; margin-bottom:20px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+    <h3 id="formTitle">Ajouter un bus</h3>
+
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="bus_id" id="bus_id">
+
+        <label>Nom</label><br>
+        <input type="text" name="name" id="bus_name" required style="width:100%; padding:8px;"><br><br>
+
+        <label>Capacité</label><br>
+        <input type="number" name="capacity" id="bus_capacity" required style="width:100%; padding:8px;"><br><br>
+
+        <label>Status</label><br>
+        <select name="status" id="bus_status" style="width:100%; padding:8px;">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+        </select><br><br>
+
+        <button type="submit" class="add-btn">Enregistrer</button>
+        <button type="button" class="delete-btn" onclick="closeForm()">Annuler</button>
+    </form>
+</div>
+
+        <div class="table-container">
+            <table class="bus-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Capacity</th>
+                        <th>Status</th>
+                        <th>Driver</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="busTableBody">
+                    {% for bus in buses %}
+                    <tr>
+                        <td>{{ bus.name }}</td>
+                        <td>{{ bus.capacity }}</td>
+                        <td>{{ bus.status }}</td>
+                        <td>{{ bus.driver.name|default:"—" }}</td>
+                        <td>
+                           <button class="edit-btn"
+    onclick="editBus('{{ bus.id }}','{{ bus.name }}','{{ bus.capacity }}','{{ bus.status }}')">
+    Edit
+</button>
+
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5">Aucun bus enregistré.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const form = document.getElementById("busForm");
+const formTitle = document.getElementById("formTitle");
+
+function closeForm(){
+    form.style.display = "none";
+}
+
+document.getElementById("addBusBtn").onclick = () => {
+    formTitle.innerText = "Ajouter un bus";
+    document.getElementById("bus_id").value = "";
+    document.getElementById("bus_name").value = "";
+    document.getElementById("bus_capacity").value = "";
+    document.getElementById("bus_status").value = "active";
+    form.style.display = "block";
+};
+
+function editBus(id, name, capacity, status){
+    formTitle.innerText = "Modifier le bus";
+    document.getElementById("bus_id").value = id;
+    document.getElementById("bus_name").value = name;
+    document.getElementById("bus_capacity").value = capacity;
+    document.getElementById("bus_status").value = status;
+    form.style.display = "block";
+}
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,22 @@
+{% extends 'citizen/base.html' %}
+{% block title %}Trajets - MauriBus{% endblock %}
+{% block content %}
+  <div class="card" style="margin-bottom:16px;">
+    <h3><i class="fas fa-bus"></i> Trajets disponibles</h3>
+    <p class="muted">Liste des trajets enregistrés.</p>
+  </div>
+
+  <div class="list">
+    {% for trip in trips %}
+      <div class="list-item">
+        <div>
+          <strong>{{ trip.line.name }}</strong>
+          <div class="muted">{{ trip.bus.name }} • {{ trip.date|date:'d/m H:i' }}</div>
+        </div>
+        <a class="btn btn-ghost" href="{% url 'mauribus_app:citizen_trip_detail' trip.id %}">Détails</a>
+      </div>
+    {% empty %}
+      <div class="card"><div class="muted">Aucun trajet disponible</div></div>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Mon Profil - Chauffeur</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body{font-family:Inter,system-ui,Arial;background:#f7f8fb;color:#111827;margin:0;padding:0}
+        .container{max-width:600px;margin:0 auto;padding:20px 16px;min-height:100vh}
+        header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;background:white;padding:20px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+        header h1{font-size:1.5rem;margin:0;color:#1e293b}
+        nav{display:flex;gap:16px;align-items:center}
+        nav a{text-decoration:none;color:#6b7280;font-size:0.95rem;transition:color 0.2s;padding:8px 12px;border-radius:6px}
+        nav a:hover{color:#2563eb;background:#f0f4f8}
+        nav a:last-child{color:#ef4444}
+        .profile-card{background:white;padding:32px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+        .profile-header{text-align:center;margin-bottom:32px}
+        .avatar{width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;color:white;font-size:2.5rem;margin:0 auto 16px;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+        .profile-name{font-size:1.5rem;font-weight:700;color:#1e293b;margin:0 0 8px}
+        .profile-role{color:#6b7280;font-size:0.95rem;margin:0}
+        .info-section{margin-bottom:28px}
+        .section-title{font-size:0.875rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+        .info-row{display:flex;align-items:center;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:8px}
+        .info-icon{width:40px;height:40px;background:#dbeafe;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#1e40af;margin-right:12px;font-size:1.1rem}
+        .info-content{flex:1}
+        .info-label{font-size:0.75rem;color:#6b7280;text-transform:uppercase}
+        .info-value{font-weight:600;color:#1e293b;font-size:0.95rem}
+        .actions{display:flex;gap:12px;margin-top:28px}
+        .btn{flex:1;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:600;transition:0.2s;text-decoration:none;text-align:center;font-size:0.95rem}
+        .btn-primary{background:#2563eb;color:white}
+        .btn-primary:hover{background:#1d4ed8}
+        .btn-secondary{background:#f8fafc;border:1px solid #e6eef9;color:#1e293b}
+        .btn-secondary:hover{background:#f0f4f8}
+        @media(max-width:768px){header{flex-direction:column;text-align:center;gap:12px}nav{flex-wrap:wrap;justify-content:center}}
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1><i class="fas fa-user"></i> Mon Profil</h1>
+        <nav>
+            <a href="{% url 'mauribus_app:driver_dashboard' %}"><i class="fas fa-home"></i> Tableau de bord</a>
+            <a href="{% url 'mauribus_app:driver_trips' %}"><i class="fas fa-route"></i> Mes trajets</a>
+            <a href="{% url 'mauribus_app:driver_buses' %}"><i class="fas fa-bus"></i> Mes bus</a>
+            <a href="{% url 'mauribus_app:driver_logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+        </nav>
+    </header>
+
+    {% if driver %}
+    <div class="profile-card">
+        <div class="profile-header">
+            <div class="avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <h2 class="profile-name">{{ driver.name }}</h2>
+            <p class="profile-role">Chauffeur de Bus</p>
+        </div>
+
+        <div class="info-section">
+            <div class="section-title">Informations de Contact</div>
+            <div class="info-row">
+                <div class="info-icon"><i class="fas fa-phone"></i></div>
+                <div class="info-content">
+                    <div class="info-label">Téléphone</div>
+                    <div class="info-value">{{ driver.phone|default:"-" }}</div>
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-icon"><i class="fas fa-envelope"></i></div>
+                <div class="info-content">
+                    <div class="info-label">Email</div>
+                    <div class="info-value">{{ driver.user.email }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <div class="section-title">Informations Professionnelles</div>
+            <div class="info-row">
+                <div class="info-icon"><i class="fas fa-id-card"></i></div>
+                <div class="info-content">
+                    <div class="info-label">ID Chauffeur</div>
+                    <div class="info-value">#{{ driver.id }}</div>
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-icon"><i class="fas fa-clock"></i></div>
+                <div class="info-content">
+                    <div class="info-label">Inscription</div>
+                    <div class="info-value">{{ driver.user.date_joined|date:'d/m/Y' }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a class="btn btn-secondary" href="{% url 'mauribus_app:driver_dashboard' %}"><i class="fas fa-arrow-left"></i> Retour au tableau de bord</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="profile-card" style="text-align:center;padding:60px 20px">
+        <i class="fas fa-exclamation-circle" style="font-size:3rem;color:#ef4444;margin-bottom:12px"></i>
+        <p>Profil non trouvé</p>
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

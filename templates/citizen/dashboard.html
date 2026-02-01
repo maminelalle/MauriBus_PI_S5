@@ -1,0 +1,38 @@
+{% extends 'citizen/base.html' %}
+{% block title %}Dashboard Citoyen - MauriBus{% endblock %}
+{% block content %}
+  <div class="grid" style="margin-bottom:18px;">
+    <div class="card">
+      <h3><i class="fas fa-route"></i> Lignes disponibles</h3>
+      <div style="font-size:2rem; font-weight:700;">{{ lines_count }}</div>
+      <div class="muted">Toutes les lignes actives</div>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-calendar-day"></i> Trajets aujourd'hui</h3>
+      <div style="font-size:2rem; font-weight:700;">{{ trips_today }}</div>
+      <div class="muted">Pour la date du jour</div>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-bus"></i> Total trajets</h3>
+      <div style="font-size:2rem; font-weight:700;">{{ trips_total }}</div>
+      <div class="muted">Historique disponible</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Trajets récents</h3>
+    <div class="list">
+      {% for trip in recent_trips %}
+        <div class="list-item">
+          <div>
+            <strong>{{ trip.line.name }}</strong>
+            <div class="muted">{{ trip.bus.name }} • {{ trip.date|date:'d/m H:i' }}</div>
+          </div>
+          <span class="muted">{{ trip.status }}</span>
+        </div>
+      {% empty %}
+        <div class="muted">Aucun trajet récent</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

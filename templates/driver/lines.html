@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lignes</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+body{font-family:Inter,system-ui,Arial;background:#f7f8fb;color:#111827;margin:0}
+.container{max-width:1100px;margin:28px auto;padding:0 16px}
+.panel{background:#fff;padding:12px;border-radius:10px;border:1px solid #eef2ff}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Lignes assignées</h1>
+    <div class="panel">
+        {% for line in lines %}
+        <div style="padding:10px;border-bottom:1px solid #f3f4f6">
+            <strong>{{ line.name }}</strong><br>
+            <span class="muted">{{ line.start }} → {{ line.end }}</span>
+        </div>
+        {% empty %}
+        <p>Aucune ligne assignée</p>
+        {% endfor %}
+    </div>
+</div>
+</body>
+</html>

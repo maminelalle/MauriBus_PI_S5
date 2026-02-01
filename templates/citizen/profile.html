@@ -1,0 +1,20 @@
+{% extends 'citizen/base.html' %}
+{% block title %}Profil - MauriBus{% endblock %}
+{% block content %}
+  <div class="card" style="margin-bottom:16px;">
+    <h3><i class="fas fa-user"></i> Mon Profil</h3>
+    <p class="muted">Informations personnelles du compte.</p>
+  </div>
+
+  <div class="card">
+    <div class="list">
+      <div class="list-item"><strong>Email</strong><span class="muted">{{ user.email }}</span></div>
+      <div class="list-item"><strong>Nom</strong><span class="muted">{{ user.first_name }} {{ user.last_name }}</span></div>
+      <div class="list-item"><strong>Statut</strong><span class="muted">Citoyen</span></div>
+      <div class="list-item"><strong>Créé le</strong><span class="muted">{{ user.date_joined|date:'d/m/Y' }}</span></div>
+    </div>
+    <div style="margin-top:14px;">
+      <a class="btn btn-primary" href="{% url 'mauribus_app:citizen_logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+    </div>
+  </div>
+{% endblock %}

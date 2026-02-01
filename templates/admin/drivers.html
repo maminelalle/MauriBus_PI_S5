@@ -1,0 +1,109 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chauffeurs - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Inter, system-ui, Arial; background: #f7f8fb; color: #111827; }
+        .admin-container { display: flex; min-height: 100vh; }
+        .sidebar { width: 220px; background: linear-gradient(180deg, #1e40af, #1e3a8a); color: white; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+        .sidebar-header { padding: 20px; font-size: 1.5em; font-weight: bold; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.2); }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; flex: 1; }
+        .sidebar-menu li a { display: block; padding: 15px 20px; color: white; text-decoration: none; transition: all 0.2s; border-left: 3px solid transparent; }
+        .sidebar-menu li a:hover, .sidebar-menu li.active a { background: rgba(59, 130, 246, 0.2); border-left-color: #60a5fa; }
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; }
+        .top-bar { margin-bottom: 30px; }
+        .top-bar h1 { font-size: 2rem; color: #1e293b; margin: 0 0 8px; font-weight: 700; }
+        .top-bar p { color: #6b7280; margin: 0; }
+        .section-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 20px; border: 1px solid #f0f0f0; }
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 14px 12px; font-weight: 700; background: #f8fafc; border-bottom: 2px solid #e5e7eb; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; color: #374151; }
+        td { padding: 14px 12px; font-size: 0.9rem; color: #374151; border-bottom: 1px solid #e5e7eb; }
+        tr:hover { background: #f9fafb; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s; }
+        .driver-avatar { width: 40px; height: 40px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
+        .driver-info { display: flex; align-items: center; }
+        .status-badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .status-active { background: #dcfce7; color: #16a34a; }
+        .status-inactive { background: #fee2e2; color: #dc2626; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
+        .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
+        @media(max-width:768px){ .main-content { padding: 20px; } .top-bar h1 { font-size: 1.5rem; } table { font-size: 0.85rem; } th, td { padding: 10px 8px; } }
+    </style>
+</head>
+<body>
+<div class="admin-container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header"><i class="fas fa-bus"></i> Mauribus</div>
+        <ul class="sidebar-menu">
+            <li><a href="{% url 'mauribus_app:dashboard' %}"><i class="fas fa-chart-line" style="width:16px"></i> Tableau de bord</a></li>
+            <li><a href="{% url 'mauribus_app:bus_list' %}"><i class="fas fa-bus" style="width:16px"></i> Autobus</a></li>
+            <li><a href="{% url 'mauribus_app:line_list' %}"><i class="fas fa-route" style="width:16px"></i> Lignes</a></li>
+            <li><a href="{% url 'mauribus_app:trip_list' %}"><i class="fas fa-map" style="width:16px"></i> Trajets</a></li>
+            <li class="active"><a href="{% url 'mauribus_app:driver_list' %}"><i class="fas fa-user-tie" style="width:16px"></i> Chauffeurs</a></li>
+            <li><a href="{% url 'mauribus_app:user_list' %}"><i class="fas fa-users" style="width:16px"></i> Utilisateurs</a></li>
+            <li><a href="{% url 'mauribus_app:admin_messages' %}"><i class="fas fa-envelope" style="width:16px"></i> Messages</a></li>
+            <li><a href="{% url 'mauribus_app:logout' %}"><i class="fas fa-sign-out-alt" style="width:16px"></i> Déconnexion</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <h1><i class="fas fa-user-tie" style="margin-right:12px"></i>Gestion des Chauffeurs</h1>
+            <p>Total: <strong>{{ drivers|length }}</strong> chauffeur(s)</p>
+        </div>
+
+        <div class="section-card">
+            {% if drivers %}
+            <table>
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-user"></i> Chauffeur</th>
+                        <th><i class="fas fa-phone"></i> Téléphone</th>
+                        <th><i class="fas fa-id-card"></i> ID Chauffeur</th>
+                        <th><i class="fas fa-envelope"></i> Email</th>
+                        <th><i class="fas fa-calendar"></i> Engagé le</th>
+                        <th><i class="fas fa-check-circle"></i> Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for driver in drivers %}
+                    <tr>
+                        <td>
+                            <div class="driver-info">
+                                <div class="driver-avatar">{{ driver.name|first|upper }}</div>
+                                <strong>{{ driver.name }}</strong>
+                            </div>
+                        </td>
+                        <td>{{ driver.phone }}</td>
+                        <td>{{ driver.id }}</td>
+                        <td>{{ driver.user.email }}</td>
+                        <td>{{ driver.hired_date|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if driver.user.is_active %}
+                                <span class="status-badge status-active"><i class="fas fa-check-circle"></i> Actif</span>
+                            {% else %}
+                                <span class="status-badge status-inactive"><i class="fas fa-times-circle"></i> Inactif</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h2>Aucun chauffeur</h2>
+                <p>Aucun chauffeur n'a été trouvé dans le système.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</body>
+</html>

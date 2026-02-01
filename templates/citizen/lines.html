@@ -1,0 +1,22 @@
+{% extends 'citizen/base.html' %}
+{% block title %}Lignes - MauriBus{% endblock %}
+{% block content %}
+  <div class="card" style="margin-bottom:16px;">
+    <h3><i class="fas fa-route"></i> Lignes</h3>
+    <p class="muted">Choisissez une ligne pour voir ses trajets.</p>
+  </div>
+
+  <div class="list">
+    {% for line in lines %}
+      <div class="list-item">
+        <div>
+          <strong>{{ line.name }}</strong>
+          <div class="muted">{{ line.start }} → {{ line.end }}</div>
+        </div>
+        <a class="btn btn-ghost" href="{% url 'mauribus_app:citizen_trips' %}">Voir trajets</a>
+      </div>
+    {% empty %}
+      <div class="card"><div class="muted">Aucune ligne disponible</div></div>
+    {% endfor %}
+  </div>
+{% endblock %}

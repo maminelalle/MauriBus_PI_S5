@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Login - Mauribus</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial, sans-serif;background:#f7f8fb;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;color:#111827}
+        .login-card{width:100%;max-width:420px;background:#fff;border-radius:10px;padding:28px;border:1px solid #e6eef9;box-shadow:0 6px 18px rgba(2,6,23,0.04)}
+        .login-card h2{font-size:1.4rem;margin-bottom:6px}
+        .login-card p{color:#6b7280;margin-bottom:16px}
+        .form-group{margin-bottom:14px}
+        input{width:100%;padding:10px 12px;border:1px solid #e6eef9;border-radius:8px}
+        .btn{display:inline-block;padding:10px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+        .btn-primary{background:#2563eb;color:#fff}
+        .helper{font-size:0.9rem;color:#6b7280;margin-top:8px}
+        .small{font-size:0.85rem;color:#6b7280}
+        .error{color:#ef4444;margin-bottom:8px}
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>Connexion Chauffeur</h2>
+        <p>Connectez-vous avec votre nom ou matricule et votre numéro de téléphone</p>
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <input name="identifier" placeholder="Nom ou Matricule" required>
+            </div>
+            <div class="form-group">
+                <input name="phone" placeholder="Numéro de téléphone" required>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+                <button class="btn btn-primary" type="submit">Se connecter</button>
+                <a href="/" class="small">Retour</a>
+            </div>
+        </form>
+        <p class="helper">Si vous n'avez pas de compte, contactez l'administrateur.</p>
+    </div>
+</body>
+</html>

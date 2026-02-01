@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inscription Citoyen - MauriBus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background: linear-gradient(135deg,#eef2ff,#f8fafc); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; }
+    .card { background:#fff; width:100%; max-width:460px; padding:24px; border-radius:16px; box-shadow:0 12px 30px rgba(15,23,42,0.12); }
+    h1 { font-size:1.25rem; margin-bottom:6px; }
+    p { color:#64748b; margin-bottom:18px; }
+    label { font-size:0.85rem; color:#475569; display:block; margin-bottom:6px; }
+    input { width:100%; padding:12px 12px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:14px; font-size:0.95rem; }
+    button { width:100%; padding:12px; border-radius:10px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; }
+    .error { background:#fee2e2; color:#991b1b; padding:10px 12px; border-radius:10px; font-size:0.9rem; margin-bottom:12px; }
+  </style>
+</head>
+<body>
+  <form class="card" method="post">
+    <h1>Créer un compte citoyen</h1>
+    <p>Inscrivez-vous pour accéder à votre profil et services.</p>
+    {% csrf_token %}
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+    <label>Prénom</label>
+    <input type="text" name="first_name" placeholder="Prénom" />
+    <label>Nom</label>
+    <input type="text" name="last_name" placeholder="Nom" />
+    <label>Email</label>
+    <input type="email" name="email" placeholder="ex: vous@mail.com" required />
+    <label>Mot de passe</label>
+    <input type="password" name="password" placeholder="••••••••" required />
+    <label>Confirmer mot de passe</label>
+    <input type="password" name="password2" placeholder="••••••••" required />
+    <button type="submit">Créer mon compte</button>
+    <p style="margin-top:12px; text-align:center;">
+      <a href="{% url 'mauribus_app:citizen_login' %}" style="text-decoration:none; color:#2563eb; font-weight:600;">Déjà un compte? Se connecter</a>
+    </p>
+  </form>
+</body>
+</html>

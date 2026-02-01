@@ -1,0 +1,161 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Messagerie - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body{font-family:Inter,system-ui,Arial;background:#f7f8fb;color:#111827;margin:0}
+        .admin-container{display:flex;min-height:100vh}
+        .sidebar{width:220px;background:#1e40af;color:white;display:flex;flex-direction:column;position:sticky;top:0}
+        .sidebar-header{padding:20px;font-size:1.5em;font-weight:bold;text-align:center;border-bottom:1px solid rgba(255,255,255,0.2)}
+        .sidebar-menu{list-style:none;padding:0;margin:0;flex:1}
+        .sidebar-menu li a{display:block;padding:15px 20px;color:white;text-decoration:none;transition:0.2s}
+        .sidebar-menu li a:hover, .sidebar-menu li.active a{background:#3b82f6}
+        .main-content{flex:1;padding:20px;overflow-y:auto}
+        .top-bar{margin-bottom:24px}
+        .top-bar h1{font-size:1.75rem;color:#1e293b;margin:0 0 12px}
+        .layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+        .panel{background:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05)}
+        .form-group{margin-bottom:16px}
+        .form-group label{display:block;font-weight:600;margin-bottom:6px;color:#374151;font-size:0.875rem}
+        .form-group input, .form-group textarea, .form-group select{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;font-family:inherit}
+        .form-group textarea{resize:vertical;min-height:100px}
+        .btn{padding:10px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:600;transition:0.2s}
+        .btn-primary{background:#2563eb;color:white}
+        .btn-primary:hover{background:#1d4ed8}
+        .btn-secondary{background:#e5e7eb;color:#374151}
+        .btn-secondary:hover{background:#d1d5db}
+        .messages-list{max-height:600px;overflow-y:auto}
+        .message-item{padding:12px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:6px;margin-bottom:8px}
+        .message-item:last-child{border-bottom:none}
+        .message-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+        .message-from{font-weight:600;color:#1e293b;font-size:0.875rem}
+        .message-to{font-size:0.75rem;color:#6b7280;padding:2px 8px;background:#cbd5e1;border-radius:4px;display:inline-block}
+        .message-time{font-size:0.75rem;color:#9ca3af}
+        .message-content{color:#374151;font-size:0.875rem;line-height:1.5;white-space:pre-wrap}
+        .message-trip{font-size:0.75rem;color:#059669;background:#dcfce7;padding:4px 8px;border-radius:4px;display:inline-block;margin-top:6px}
+        .empty-state{text-align:center;color:#6b7280;padding:40px 20px}
+        .broadcast-label{background:#fef3c7;color:#b45309;padding:4px 8px;border-radius:4px;font-size:0.75rem;display:inline-block;margin-left:6px}
+        .checkbox-group{display:flex;align-items:center;gap:8px}
+        .checkbox-group input{width:auto;margin:0}
+        @media(max-width:1024px){.layout{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+<div class="admin-container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">Mauribus</div>
+        <ul class="sidebar-menu">
+            <li><a href="{% url 'mauribus_app:dashboard' %}">Tableau de bord</a></li>
+            <li><a href="{% url 'mauribus_app:bus_list' %}">Autobus</a></li>
+            <li><a href="{% url 'mauribus_app:line_list' %}">Lignes</a></li>
+            <li><a href="{% url 'mauribus_app:trip_list' %}">Trajets</a></li>
+            <li><a href="{% url 'mauribus_app:driver_list' %}">Chauffeurs</a></li>
+            <li><a href="{% url 'mauribus_app:user_list' %}">Utilisateurs</a></li>
+            <li class="active"><a href="{% url 'mauribus_app:admin_messages' %}">Messages</a></li>
+            <li><a href="{% url 'mauribus_app:logout' %}">Déconnexion</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <h1>Messagerie Admin</h1>
+            <p style="color:#6b7280;margin:0">Communiquez directement avec les chauffeurs</p>
+        </div>
+
+        <div class="layout">
+            <!-- Message Send Panel -->
+            <div class="panel">
+                <h2 style="margin-top:0">Envoyer un Message</h2>
+                <form method="post" action="{% url 'mauribus_app:admin_send_message' %}">{% csrf_token %}
+                    <div class="form-group">
+                        <label>Type d'Envoi</label>
+                        <div class="checkbox-group">
+                            <input type="radio" id="broadcastYes" name="broadcast" value="1" onchange="toggleRecipient()">
+                            <label for="broadcastYes" style="margin:0;font-weight:400">Tous les chauffeurs (Diffusion)</label>
+                        </div>
+                        <div class="checkbox-group" style="margin-top:8px">
+                            <input type="radio" id="broadcastNo" name="broadcast" value="0" checked onchange="toggleRecipient()">
+                            <label for="broadcastNo" style="margin:0;font-weight:400">Chauffeur spécifique</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="recipientGroup">
+                        <label for="recipient">Sélectionner un chauffeur</label>
+                        <select id="recipient" name="recipient">
+                            <option value="">-- Choisir --</option>
+                            {% for driver in drivers %}
+                            <option value="{{ driver.user.id }}">{{ driver.name }} ({{ driver.phone }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="content">Message</label>
+                        <textarea id="content" name="content" placeholder="Tapez votre message ici..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width:100%">Envoyer</button>
+                </form>
+            </div>
+
+            <!-- Messages List Panel -->
+            <div class="panel">
+                <h2 style="margin-top:0">Messages Reçus ({{ messages.count }})</h2>
+                <div class="messages-list">
+                    {% if messages %}
+                        {% for msg in messages %}
+                        <div class="message-item">
+                            <div class="message-header">
+                                <div>
+                                    <div class="message-from">{{ msg.sender.get_full_name|default:msg.sender.email }}</div>
+                                    {% if msg.broadcast %}
+                                        <span class="broadcast-label">DIFFUSION</span>
+                                    {% elif msg.recipient %}
+                                        <span class="message-to">À: {{ msg.recipient.get_full_name|default:msg.recipient.email }}</span>
+                                    {% else %}
+                                        <span class="message-to">À: Admin</span>
+                                    {% endif %}
+                                </div>
+                                <span class="message-time">{{ msg.created_at|date:'d/m/Y H:i' }}</span>
+                            </div>
+                            {% if msg.trip %}
+                                <div class="message-trip">Trajet: {{ msg.trip.line.name }} - {{ msg.trip.bus.name }}</div>
+                            {% endif %}
+                            <div class="message-content">{{ msg.content }}</div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <p>Aucun message pour l'instant</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleRecipient() {
+        const isBroadcast = document.getElementById('broadcastYes').checked;
+        const recipientGroup = document.getElementById('recipientGroup');
+        const recipientSelect = document.getElementById('recipient');
+        if(isBroadcast){
+            recipientGroup.style.display = 'none';
+            recipientSelect.value = '';
+            recipientSelect.removeAttribute('required');
+        } else {
+            recipientGroup.style.display = 'block';
+            recipientSelect.setAttribute('required', 'required');
+        }
+    }
+    // Initialize
+    toggleRecipient();
+</script>
+</body>
+</html>

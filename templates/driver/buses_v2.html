@@ -1,0 +1,96 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Mes Autobus - Chauffeur</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body{font-family:Inter,system-ui,Arial;background:#f7f8fb;color:#111827;margin:0;padding:0}
+        .container{max-width:1200px;margin:0 auto;padding:20px 16px}
+        header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;background:white;padding:20px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+        header h1{font-size:1.5rem;margin:0;color:#1e293b}
+        nav{display:flex;gap:16px;align-items:center}
+        nav a{text-decoration:none;color:#6b7280;font-size:0.95rem;transition:color 0.2s;padding:8px 12px;border-radius:6px}
+        nav a:hover{color:#2563eb;background:#f0f4f8}
+        nav a:last-child{color:#ef4444}
+        .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+        .bus-card{background:white;padding:20px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.05);transition:all 0.2s;border-left:4px solid #2563eb}
+        .bus-card:hover{box-shadow:0 8px 16px rgba(0,0,0,0.1);transform:translateY(-2px)}
+        .bus-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:12px}
+        .bus-name{font-size:1.1rem;font-weight:700;color:#1e293b;margin:0}
+        .bus-status{display:inline-block;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600}
+        .status-service{background:#dcfce7;color:#166534}
+        .status-panne{background:#fee2e2;color:#991b1b}
+        .status-maintenance{background:#fef3c7;color:#b45309}
+        .status-garage{background:#dbeafe;color:#1e40af}
+        .bus-info{margin:12px 0}
+        .info-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:0.9rem}
+        .info-label{color:#6b7280}
+        .info-value{font-weight:600;color:#1e293b}
+        .bus-icon{font-size:2rem;color:#2563eb;opacity:0.7}
+        .empty-state{text-align:center;padding:60px 20px;color:#6b7280}
+        .empty-state i{font-size:3rem;margin-bottom:12px;opacity:0.5}
+        @media(max-width:768px){header{flex-direction:column;text-align:center;gap:12px}.cards-grid{grid-template-columns:1fr}nav{flex-wrap:wrap;justify-content:center}}
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1><i class="fas fa-bus"></i> Mes Autobus</h1>
+        <nav>
+            <a href="{% url 'mauribus_app:driver_dashboard' %}"><i class="fas fa-home"></i> Tableau de bord</a>
+            <a href="{% url 'mauribus_app:driver_trips' %}"><i class="fas fa-route"></i> Mes trajets</a>
+            <a href="{% url 'mauribus_app:driver_profile' %}"><i class="fas fa-user"></i> Profil</a>
+            <a href="{% url 'mauribus_app:driver_logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+        </nav>
+    </header>
+
+    {% if buses %}
+    <div class="cards-grid">
+        {% for bus in buses %}
+        <div class="bus-card">
+            <div class="bus-header">
+                <h3 class="bus-name">{{ bus.name }}</h3>
+                <i class="fas fa-bus bus-icon"></i>
+            </div>
+            <span class="bus-status status-{{ bus.status }}">
+                <i class="fas fa-circle-info"></i>
+                {% if bus.status == 'service' %}
+                    En Service
+                {% elif bus.status == 'panne' %}
+                    En Panne
+                {% elif bus.status == 'maintenance' %}
+                    Maintenance
+                {% else %}
+                    Au Garage
+                {% endif %}
+            </span>
+            <div class="bus-info">
+                <div class="info-row">
+                    <span class="info-label"><i class="fas fa-users"></i> Capacité</span>
+                    <span class="info-value">{{ bus.capacity }} places</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="fas fa-map-marker-alt"></i> Position</span>
+                    <span class="info-value" style="font-family:monospace;font-size:0.85rem">{{ bus.lat|floatformat:2 }}, {{ bus.lng|floatformat:2 }}</span>
+                </div>
+                <div class="info-row" style="border-bottom:none">
+                    <span class="info-label"><i class="fas fa-id-card"></i> ID</span>
+                    <span class="info-value">#{{ bus.id }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-bus"></i>
+        <p>Aucun autobus assigné pour le moment</p>
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

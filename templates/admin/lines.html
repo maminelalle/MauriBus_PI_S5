@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Lines - Mauribus</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+body{margin:0;font-family:Inter,system-ui,Arial;background:#f7f8fb;color:#111827}
+.admin-container{display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1e40af;color:white;display:flex;flex-direction:column}
+.sidebar-header{padding:20px;font-size:1.5em;font-weight:bold;text-align:center;border-bottom:1px solid rgba(255,255,255,0.2)}
+.sidebar-menu{list-style:none;padding:0;margin:0;flex:1}
+.sidebar-menu li a{display:block;padding:15px 20px;color:white;text-decoration:none;transition:0.2s}
+.sidebar-menu li a:hover, .sidebar-menu li.active a{background:#3b82f6}
+.main-content{flex:1;padding:20px}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.top-bar h1{font-size:1.75rem;color:#1e293b;margin:0}
+.add-btn{padding:8px 12px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500;font-size:0.875rem}
+.add-btn:hover{background:#1d4ed8}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05)}
+#map{height:500px;border-radius:8px;border:1px solid #e2e8f0;margin-top:8px}
+#formMiniMap{height:400px;border-radius:8px;border:1px solid #e2e8f0;margin-top:8px}
+#searchInput{width:100%;padding:10px;margin-bottom:12px;border:1px solid #cbd5e1;border-radius:6px}
+.lines-table{width:100%;border-collapse:collapse}
+.lines-table th, .lines-table td{padding:12px;text-align:left;border-bottom:1px solid #e2e8f0}
+.lines-table th{background:#f1f5f9;font-weight:600}
+.lines-table tr:hover{background:#f8fafc}
+.btn-small{padding:4px 8px;margin-right:4px;border:none;border-radius:4px;cursor:pointer;font-size:0.75rem}
+.btn-edit{background:#facc15;color:white} /* jaune */
+.btn-edit:hover{background:#eab308}
+.btn-delete{background:#ef4444;color:white}
+.btn-delete:hover{background:#dc2626}
+.btn-set{background:#10b981;color:white}
+.btn-set:hover{background:#059669}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-weight:600;margin-bottom:4px;color:#374151}
+.form-group input{width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;font-size:0.875rem}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:1000;justify-content:center;align-items:center}
+.modal-content{background:white;padding:20px;border-radius:12px;max-width:600px;width:90%}
+.modal-header{font-size:1.25rem;font-weight:700;margin-bottom:12px}
+.modal-footer{margin-top:16px;display:flex;gap:8px;justify-content:flex-end}
+.autocomplete-suggestions{border:1px solid #cbd5e1;background:white;max-height:150px;overflow-y:auto;border-radius:6px;position:absolute;z-index:10000;width:calc(100% - 16px);}
+.autocomplete-suggestions div{padding:6px 10px;cursor:pointer}
+.autocomplete-suggestions div:hover{background:#f1f5f9}
+@media(max-width:1024px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="admin-container">
+<div class="sidebar">
+    <div class="sidebar-header">Mauribus</div>
+    <ul class="sidebar-menu">
+        <li><a href="{% url 'mauribus_app:dashboard' %}">Tableau de bord</a></li>
+        <li><a href="{% url 'mauribus_app:bus_list' %}">Autobus</a></li>
+        <li class="active"><a href="{% url 'mauribus_app:line_list' %}">Lignes</a></li>
+        <li><a href="{% url 'mauribus_app:trip_list' %}">Trajets</a></li>
+        <li><a href="{% url 'mauribus_app:driver_list' %}">Chauffeurs</a></li>
+        <li><a href="{% url 'mauribus_app:user_list' %}">Utilisateurs</a></li>
+        <li><a href="{% url 'mauribus_app:admin_messages' %}">Messages</a></li>
+        <li><a href="{% url 'mauribus_app:logout' %}">Déconnexion</a></li>
+    </ul>
+</div>
+
+<div class="main-content">
+<div class="top-bar">
+    <h1>Lignes de Transport</h1>
+    <button class="add-btn" onclick="openAddModal()">Ajouter Ligne</button>
+</div>
+
+<div class="layout">
+<div class="panel">
+<h2 style="margin-top:0">Liste des Lignes</h2>
+<input type="text" id="searchInput" placeholder="Rechercher une ligne...">
+<table class="lines-table">
+<thead>
+<tr><th>Nom</th><th>Départ</th><th>Arrivée</th><th>Actions</th></tr>
+</thead>
+<tbody id="lineTableBody">
+{% for line in lines_list %}
+<tr data-line-id="{{ line.id }}">
+    <td>{{ line.name }}</td>
+    <td>{{ line.start }}</td>
+    <td>{{ line.end }}</td>
+    <td style="font-size:0.875rem">
+        <button class="btn-small btn-set" data-line-id="{{ line.id }}" onclick="selectLineForMapBtn(this)">Carte</button>
+        <button class="btn-small btn-edit" data-line-id="{{ line.id }}" onclick="editLineBtn(this)">Modifier</button>
+        <button class="btn-small btn-delete" data-line-id="{{ line.id }}" onclick="deleteLineBtn(this)">Supprimer</button>
+    </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+<div class="panel">
+<h2 style="margin-top:0">Carte Interactive</h2>
+<p id="lineStatus" style="color:#6b7280;font-size:0.875rem">Cliquez sur "Carte" pour éditer les points d'une ligne</p>
+<div id="map"></div>
+<div id="pointsPanel" style="margin-top:12px;display:none">
+    <div class="form-group">
+        <label>Latitude Départ: <span id="pStartLat">-</span></label>
+        <label>Longitude Départ: <span id="pStartLng">-</span></label>
+    </div>
+    <div class="form-group">
+        <label>Latitude Arrivée: <span id="pEndLat">-</span></label>
+        <label>Longitude Arrivée: <span id="pEndLng">-</span></label>
+    </div>
+    <button onclick="saveLineCoordinates()" class="btn-small btn-set" style="width:100%;padding:8px">Enregistrer Points</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Modal Ajouter/Modifier Ligne avec mini-map et autocomplétion -->
+<div id="lineModal" class="modal">
+<div class="modal-content">
+<div class="modal-header">Ajouter/Modifier Ligne</div>
+<form method="post" id="lineForm">{% csrf_token %}
+    <input type="hidden" name="line_id" id="lineIdField">
+    <div class="form-group" style="position:relative;">
+        <label for="lineName">Nom de la Ligne</label>
+        <input type="text" id="lineName" name="name" required>
+    </div>
+    <div class="form-group" style="position:relative;">
+        <label for="lineStart">Point de Départ</label>
+        <input type="text" id="lineStart" name="start" required autocomplete="off">
+        <div id="startSuggestions" class="autocomplete-suggestions"></div>
+    </div>
+    <div class="form-group" style="position:relative;">
+        <label for="lineEnd">Point d'Arrivée</label>
+        <input type="text" id="lineEnd" name="end" required autocomplete="off">
+        <div id="endSuggestions" class="autocomplete-suggestions"></div>
+    </div>
+    <div class="form-group">
+        <label>Mini-Map (Mauritanie)</label>
+        <div id="formMiniMap"></div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" onclick="closeAddModal()" class="btn-small" style="background:#e5e7eb;color:#374151">Annuler</button>
+        <button type="submit" class="btn-small btn-set">Enregistrer</button>
+    </div>
+</form>
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const linesData = {{ lines_json|safe }};
+let currentLineId=null, startMarker=null, endMarker=null;
+let map = L.map('map').setView([17.4731,-15.7923],7); // Mauritanie centré
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+let lineRoute=null;
+
+// CRUD buttons
+function selectLineForMapBtn(btn){selectLineForMap(btn.dataset.lineId);}
+function editLineBtn(btn){
+    const id=btn.dataset.lineId; const line=linesData.find(l=>l.id==id); if(!line) return;
+    document.getElementById('lineIdField').value=line.id;
+    document.getElementById('lineName').value=line.name;
+    document.getElementById('lineStart').value=line.start;
+    document.getElementById('lineEnd').value=line.end;
+    openAddModal(); updateFormMiniMap(line.start_lat,line.start_lng,line.end_lat,line.end_lng);
+}
+function deleteLineBtn(btn){if(confirm('Supprimer cette ligne?')){window.location.href=`/lines/delete/${btn.dataset.lineId}/`;}}
+
+// Map interactive main
+function selectLineForMap(id){
+    currentLineId=id;
+    const line=linesData.find(l=>l.id==id); if(!line) return;
+    document.getElementById('lineStatus').innerHTML=`<strong>${line.name}</strong> — Cliquez sur la carte pour placer les points`;
+    document.getElementById('pointsPanel').style.display='block';
+    if(lineRoute){map.removeLayer(lineRoute); lineRoute=null;}
+    if(startMarker) map.removeLayer(startMarker); startMarker=null;
+    if(endMarker) map.removeLayer(endMarker); endMarker=null;
+    if(line.start_lat && line.start_lng){startMarker=L.marker([line.start_lat,line.start_lng]).addTo(map);}
+    if(line.end_lat && line.end_lng){endMarker=L.marker([line.end_lat,line.end_lng]).addTo(map);}
+    if(startMarker && endMarker){drawRoute();}
+    map.off('click');
+    map.on('click',e=>{
+        const {lat,lng}=e.latlng;
+        if(!startMarker){startMarker=L.marker([lat,lng]).addTo(map);}
+        else if(!endMarker){endMarker=L.marker([lat,lng]).addTo(map);}
+        else{map.removeLayer(endMarker); endMarker=L.marker([lat,lng]).addTo(map);}
+        drawRoute();
+    });
+}
+
+function drawRoute(){
+    if(lineRoute) map.removeLayer(lineRoute);
+    if(startMarker && endMarker){
+        lineRoute=L.polyline([startMarker.getLatLng(), endMarker.getLatLng()],{color:'blue'}).addTo(map);
+    }
+}
+
+// Save coordinates
+function saveLineCoordinates(){
+    if(!currentLineId||!startMarker||!endMarker){alert('Veuillez placer les deux points sur la carte');return;}
+    const formData=new FormData();
+    formData.append('line_id',currentLineId);
+    formData.append('start_lat',startMarker.getLatLng().lat);
+    formData.append('start_lng',startMarker.getLatLng().lng);
+    formData.append('end_lat',endMarker.getLatLng().lat);
+    formData.append('end_lng',endMarker.getLatLng().lng);
+    fetch("{% url 'mauribus_app:admin_set_line_points' %}",{method:'POST',body:formData,headers:{'X-CSRFToken':document.querySelector('[name=csrfmiddlewaretoken]').value}})
+    .then(r=>r.json()).then(d=>{if(d.ok){alert('Coordonnées enregistrées!');map.off('click');document.getElementById('pointsPanel').style.display='none';currentLineId=null;}else alert('Erreur: '+(d.error||'unknown'));});
+}
+
+// Modal
+function openAddModal(){document.getElementById('lineModal').style.display='flex';}
+function closeAddModal(){document.getElementById('lineModal').style.display='none';}
+
+// Search
+document.getElementById('searchInput').addEventListener('input',e=>{
+    const filter=e.target.value.toLowerCase();
+    document.querySelectorAll('#lineTableBody tr').forEach(row=>{row.style.display=row.textContent.toLowerCase().includes(filter)?'':'none';});
+});
+
+// === Mini-map formulaire avec autocomplétion ===
+let formMap = L.map('formMiniMap').setView([17.4731,-15.7923],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(formMap);
+let formStartMarker=null, formEndMarker=null, formLine=null;
+
+function updateFormMiniMap(startLat,startLng,endLat,endLng){
+    if(formStartMarker) formMap.removeLayer(formStartMarker);
+    if(formEndMarker) formMap.removeLayer(formEndMarker);
+    if(formLine) formMap.removeLayer(formLine);
+    if(startLat && startLng){formStartMarker=L.marker([startLat,startLng]).addTo(formMap);}
+    if(endLat && endLng){formEndMarker=L.marker([endLat,endLng]).addTo(formMap);}
+    drawFormRoute();
+}
+
+function drawFormRoute(){
+    if(formLine) formMap.removeLayer(formLine);
+    if(formStartMarker && formEndMarker){
+        formLine=L.polyline([formStartMarker.getLatLng(), formEndMarker.getLatLng()],{color:'green'}).addTo(formMap);
+    }
+}
+
+// Mini-map click
+formMap.on('click',e=>{
+    const {lat,lng}=e.latlng;
+    if(!formStartMarker){formStartMarker=L.marker([lat,lng]).addTo(formMap);geocodeAndUpdate(lat,lng,'start');}
+    else if(!formEndMarker){formEndMarker=L.marker([lat,lng]).addTo(formMap);geocodeAndUpdate(lat,lng,'end');}
+    else{formMap.removeLayer(formEndMarker); formEndMarker=L.marker([lat,lng]).addTo(formMap);geocodeAndUpdate(lat,lng,'end');}
+    drawFormRoute();
+});
+
+// Autocomplete OSM pour Mauritanie
+function geocodeAndUpdate(lat,lng,type){
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&countrycodes=MR`)
+    .then(r=>r.json()).then(d=>{
+        const addr=d.display_name||`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        if(type==='start') document.getElementById('lineStart').value=addr;
+        else document.getElementById('lineEnd').value=addr;
+    });
+}
+
+// Autocomplete input
+function autocompleteOSM(inputId,suggestionsId){
+    const input=document.getElementById(inputId);
+    const suggestionBox=document.getElementById(suggestionsId);
+    input.addEventListener('input',async()=>{
+        const val=input.value;
+        if(!val){suggestionBox.innerHTML='';return;}
+        const res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=MR&q=${encodeURIComponent(val)}&limit=5`);
+        const data=await res.json(); suggestionBox.innerHTML='';
+        data.forEach(d=>{
+            const div=document.createElement('div'); div.innerText=d.display_name; div.addEventListener('click',()=>{
+                input.value=d.display_name;
+                suggestionBox.innerHTML='';
+                const lat=parseFloat(d.lat), lng=parseFloat(d.lon);
+                if(inputId==='lineStart'){if(formStartMarker) formMap.removeLayer(formStartMarker);formStartMarker=L.marker([lat,lng]).addTo(formMap);}
+                else {if(formEndMarker) formMap.removeLayer(formEndMarker);formEndMarker=L.marker([lat,lng]).addTo(formMap);}
+                drawFormRoute(); formMap.setView([lat,lng],12);
+            }); suggestionBox.appendChild(div);
+        });
+    });
+}
+
+autocompleteOSM('lineStart','startSuggestions');
+autocompleteOSM('lineEnd','endSuggestions');
+</script>
+</body>
+</html>

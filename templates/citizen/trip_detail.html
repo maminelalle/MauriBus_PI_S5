@@ -1,0 +1,49 @@
+{% extends 'citizen/base.html' %}
+{% block title %}Trajet - MauriBus{% endblock %}
+{% block content %}
+  <div class="card" style="margin-bottom:16px;">
+    <h3><i class="fas fa-bus"></i> {{ trip.line.name }}</h3>
+    <p class="muted">{{ trip.line.start }} → {{ trip.line.end }}</p>
+  </div>
+
+  <div class="grid" style="margin-bottom:16px;">
+    <div class="card">
+      <h3>Horaires</h3>
+      <div class="muted">Départ: {{ trip.date|date:'d/m/Y H:i' }}</div>
+      <div class="muted">Statut: {{ trip.status }}</div>
+    </div>
+    <div class="card">
+      <h3>Bus</h3>
+      <div class="muted">{{ trip.bus.name }}</div>
+      <div class="muted">Capacité: {{ trip.bus.capacity }}</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h3>Itinéraire</h3>
+    <div id="map" style="height:360px; border-radius:14px; border:1px solid #e2e8f0;"></div>
+    <p class="muted" style="margin-top:8px;">Carte interactive gratuite (OpenStreetMap).</p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const startLat = {{ line.start_lat|default:'null' }};
+    const startLng = {{ line.start_lng|default:'null' }};
+    const endLat = {{ line.end_lat|default:'null' }};
+    const endLng = {{ line.end_lng|default:'null' }};
+
+    const map = L.map('map');
+    const hasCoords = startLat !== null && startLng !== null && endLat !== null && endLng !== null;
+    const center = hasCoords ? [(startLat + endLat) / 2, (startLng + endLng) / 2] : [14.7, -17.44];
+
+    map.setView(center, hasCoords ? 12 : 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+    if (hasCoords) {
+      const startMarker = L.marker([startLat, startLng]).addTo(map).bindPopup('Départ');
+      const endMarker = L.marker([endLat, endLng]).addTo(map).bindPopup('Arrivée');
+      const route = L.polyline([[startLat, startLng], [endLat, endLng]], { color: '#2563eb', weight: 4, opacity: 0.8 }).addTo(map);
+      map.fitBounds(route.getBounds(), { padding: [20, 20] });
+    }
+  </script>
+{% endblock %}

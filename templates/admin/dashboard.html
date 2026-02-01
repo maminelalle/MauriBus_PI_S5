@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - Mauribus</title>
+    
+    
+</head>
+    <!-- Google Font + Font Awesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; background:#f7f8fb; color:#0f172a; min-height:100vh; }
+        .admin-container { display:flex; gap:24px; }
+        .sidebar { width:220px; background:#285ccd; color:#ffffff; display:flex; flex-direction:column; padding-top:18px; height:100vh; position:sticky; top:0; }
+        .sidebar-header { padding:18px; font-weight:700; text-align:center; font-size:1.05rem; border-bottom:1px solid rgba(255,255,255,0.04); }
+        .sidebar-menu { list-style:none; padding:14px; margin:0; display:flex; flex-direction:column; gap:6px; }
+        .sidebar-menu li a { display:flex; gap:10px; align-items:center; padding:10px 12px; color:#e6eef9; text-decoration:none; border-radius:8px; font-weight:600; }
+        .sidebar-menu li a.active, .sidebar-menu li a:hover { background: rgba(255,255,255,0.03); color:#ffffff; }
+        .main-content { flex:1; padding:28px; }
+        .page-header h1 { font-size:1.6rem; font-weight:700; margin-bottom:6px; }
+        .page-header p { color:#6b7280; margin-bottom:18px; }
+        .stats-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:20px; }
+        .stat-card { background:#ffffff; padding:14px; border-radius:10px; box-shadow:0 6px 18px rgba(15,23,42,0.04); }
+        .stat-card h3 { color:#6b7280; font-size:.78rem; text-transform:uppercase; margin-bottom:6px; }
+        .stat-card .number { font-size:1.3rem; font-weight:700; color:#0f172a; }
+        .dashboard-widgets { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+        @media (max-width:1000px){ .dashboard-widgets{ grid-template-columns:1fr; } .sidebar{ position:relative; height:auto; width:100%; } .admin-container{ flex-direction:column; } }
+        .widget-card, .section-card { background:#ffffff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:24px; border:1px solid #f0f0f0 }
+        .section-card h2 { font-size:1.1rem; margin-bottom:16px; color:#1e293b; display:flex; align-items:center; gap:10px }
+        .form-group { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+        .form-group input, .form-group select { flex:1; min-width:140px; padding:10px 12px; border:1px solid #e6eef9; border-radius:8px; background:#fff; }
+        table { width:100%; border-collapse:collapse; margin-top:12px }
+        th { padding:14px 12px; text-align:left; color:#6b7280; font-size:0.85rem; font-weight:700; background:#f8fafc; border-bottom:2px solid #e5e7eb; text-transform:uppercase; letter-spacing:0.5px }
+        td { padding:14px 12px; border-bottom:1px solid #f3f4f6; color:#374151; font-size:0.9rem }
+        tbody tr { transition:all 0.2s }
+        tbody tr:hover { background:#f9fafb; box-shadow:0 2px 4px rgba(0,0,0,0.02) }
+        .table-responsive { overflow-x:auto }
+        .btn { border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; font-size:.9rem; }
+        .btn-primary { background:#2563eb; color:white; }
+        .btn-primary:hover { opacity:0.95; }
+        .btn-edit { background:#eef2ff; color:#2563eb; border:1px solid rgba(37,99,235,0.08); }
+        .btn-delete { background:#fee2e2; color:#b91c1c; border:1px solid rgba(239,68,68,0.06); }
+        .action-buttons { display:flex; gap:8px; }
+        .modal { display:none; }
+        #adminMap { height:400px; border-radius:12px; margin-bottom:24px; border:1px solid #e5e7eb; box-shadow:0 2px 8px rgba(0,0,0,0.06) }
+        .map-info { background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:12px; font-size:0.9rem; color:#6b7280 }
+    </style>
+</head>
+<body>
+<div class="admin-container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header"><i class="fas fa-bus"></i> Mauribus</div>
+        <ul class="sidebar-menu">
+            <li><a href="{% url 'mauribus_app:dashboard' %}" class="active"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="{% url 'mauribus_app:bus_list' %}"><i class="fas fa-bus"></i> Buses</a></li>
+            <li><a href="{% url 'mauribus_app:line_list' %}"><i class="fas fa-route"></i> Lines</a></li>
+            <li><a href="{% url 'mauribus_app:trip_list' %}"><i class="fas fa-calendar-alt"></i> Trips</a></li>
+            <li><a href="{% url 'mauribus_app:driver_list' %}"><i class="fas fa-user-tie"></i> Drivers</a></li>
+            <li><a href="{% url 'mauribus_app:user_list' %}"><i class="fas fa-users"></i> Users</a></li>
+            <li><a href="{% url 'mauribus_app:logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page-header">
+            <h1><i class="fas fa-chart-line"></i> Dashboard Admin</h1>
+            <p>Gestion complète des bus, lignes, trajets et utilisateurs</p>
+        </div>
+
+        <!-- Stat Cards -->
+        <div class="stats-cards">
+            <div class="stat-card">
+                <i class="fas fa-bus"></i>
+                <h3>Total Buses</h3>
+                <div class="number">{{ buses }}</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-route"></i>
+                <h3>Total Lines</h3>
+                <div class="number">{{ lines_count }}</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-calendar-alt"></i>
+                <h3>Total Trips</h3>
+                <div class="number">{{ trips_count }}</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-user-tie"></i>
+                <h3>Drivers</h3>
+                <div class="number">{{ drivers_count }}</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-users"></i>
+                <h3>Users</h3>
+                <div class="number">{{ users }}</div>
+            </div>
+        </div>
+
+        <!-- Quick Access Cards -->
+        <div class="stats-cards" style="margin-bottom:24px">
+            <a href="{% url 'mauribus_app:admin_messages' %}" style="text-decoration:none">
+                <div class="stat-card" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;cursor:pointer;transition:all 0.2s">
+                    <i class="fas fa-envelope" style="font-size:1.5rem;margin-bottom:8px"></i>
+                    <h3 style="color:rgba(255,255,255,0.9)">Messagerie</h3>
+                    <div class="number" style="color:white">Accédez</div>
+                    <p style="font-size:0.75rem;color:rgba(255,255,255,0.8);margin-top:6px">Gérer les messages</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- Admin Map Section -->
+        <div class="section-card">
+            <h2><i class="fas fa-map-marker-alt"></i> Visualisation des Ressources</h2>
+            <div class="map-info">
+                <i class="fas fa-info-circle"></i> Carte affichant tous les bus et lignes enregistrés dans le système
+            </div>
+            <div id="adminMap"></div>
+        </div>
+
+        <!-- Map & Chart removed -->
+
+        <!-- Buses Section -->
+        <div class="section-card" id="buses">
+            <h2><i class="fas fa-bus"></i> Manage Buses</h2>
+            <form method="POST" style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                {% csrf_token %}
+                <div class="form-group">
+                    <input type="hidden" id="busId" name="bus_id">
+                    <input type="text" id="busName" name="name" placeholder="Bus Name" required>
+                    <input type="number" id="busCapacity" name="capacity" placeholder="Capacity" required>
+                    <select name="driver" id="busDriver" style="flex: 1; min-width: 150px; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <option value="">Select Driver</option>
+                        {% for driver in drivers_list %}<option value="{{ driver.id }}">{{ driver.name }}</option>{% endfor %}
+                    </select>
+                    <select name="status" id="busStatus" style="flex: 1; min-width: 150px; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <option value="service">En Service</option>
+                        <option value="panne">En Panne</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="garage">Au Garage</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <span id="busBtnText">Add Bus</span></button>
+                    <button type="reset" class="btn" style="background: #cbd5e1; color: #1e293b;" onclick="resetBusForm()"><i class="fas fa-redo"></i> Clear</button>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-tag"></i> Name</th>
+                            <th><i class="fas fa-users"></i> Capacity</th>
+                            <th><i class="fas fa-user-tie"></i> Driver</th>
+                            <th><i class="fas fa-wrench"></i> Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bus in buses_list %}
+                        <tr>
+                            <td>{{ bus.name }}</td>
+                            <td>{{ bus.capacity }} passengers</td>
+                            <td>{{ bus.driver.name|default:"Unassigned" }}</td>
+                            <td><span class="status-badge" style="background: {% if bus.status == 'service' %}#10b981{% elif bus.status == 'panne' %}#ef4444{% elif bus.status == 'maintenance' %}#f59e0b{% else %}#8b5cf6{% endif %}; color: white; padding: 4px 8px; border-radius: 4px;">{{ bus.get_status_display }}</span></td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-edit" onclick="editBusForm({{ bus.id }}, '{{ bus.name }}', {{ bus.capacity }}, {{ bus.driver.id|default:'null' }}, '{{ bus.status }}')"><i class="fas fa-edit"></i> Edit</button>
+                                    <a href="{% url 'mauribus_app:bus_delete' bus.id %}" class="btn btn-delete" onclick="return confirm('Delete this bus?')"><i class="fas fa-trash"></i> Delete</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" style="text-align: center; color: #999;">No buses yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Lines Section -->
+        <div class="section-card" id="lines">
+            <h2><i class="fas fa-route"></i> Manage Lines</h2>
+            <form method="POST" style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                {% csrf_token %}
+                <div class="form-group">
+                    <input type="hidden" id="lineId" name="line_id">
+                    <input type="text" id="lineName" name="name" placeholder="Line Name" required>
+                    <input type="text" id="lineStart" name="start" placeholder="Start Location" required>
+                    <input type="text" id="lineEnd" name="end" placeholder="End Location" required>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <span id="lineBtnText">Add Line</span></button>
+                    <button type="reset" class="btn" style="background: #cbd5e1; color: #1e293b;" onclick="resetLineForm()"><i class="fas fa-redo"></i> Clear</button>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-tag"></i> Name</th>
+                            <th><i class="fas fa-map-pin"></i> Start</th>
+                            <th><i class="fas fa-map-pin"></i> End</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line in lines_list %}
+                        <tr>
+                            <td><strong>{{ line.name }}</strong></td>
+                            <td>{{ line.start }}</td>
+                            <td>{{ line.end }}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-edit" onclick="editLineForm({{ line.id }}, '{{ line.name }}', '{{ line.start }}', '{{ line.end }}')"><i class="fas fa-edit"></i> Edit</button>
+                                    <a href="{% url 'mauribus_app:line_delete' line.id %}" class="btn btn-delete" onclick="return confirm('Delete this line?')"><i class="fas fa-trash"></i> Delete</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" style="text-align: center; color: #999;">No lines yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Trips Section -->
+        <div class="section-card" id="trips">
+            <h2><i class="fas fa-calendar-alt"></i> Manage Trips</h2>
+            <form method="POST" style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                {% csrf_token %}
+                <div class="form-group">
+                    <input type="hidden" id="tripId" name="trip_id">
+                    <select name="trip_bus_id" id="tripBus" required style="flex: 1; min-width: 150px; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <option value="">Select Bus</option>
+                        {% for bus in buses_list %}<option value="{{ bus.id }}">{{ bus.name }}</option>{% endfor %}
+                    </select>
+                    <select name="trip_line_id" id="tripLine" required style="flex: 1; min-width: 150px; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <option value="">Select Line</option>
+                        {% for line in lines_list %}<option value="{{ line.id }}">{{ line.name }}</option>{% endfor %}
+                    </select>
+                    <input type="datetime-local" name="trip_date" id="tripDate" style="flex: 1; min-width: 150px; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <span id="tripBtnText">Add Trip</span></button>
+                    <button type="reset" class="btn" style="background: #cbd5e1; color: #1e293b;" onclick="resetTripForm()"><i class="fas fa-redo"></i> Clear</button>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-bus"></i> Bus</th>
+                            <th><i class="fas fa-route"></i> Line</th>
+                            <th><i class="fas fa-calendar"></i> Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trip in trips_list %}
+                        <tr>
+                            <td><strong>{{ trip.bus.name }}</strong></td>
+                            <td>{{ trip.line.name }}</td>
+                            <td>{{ trip.date|date:"d/m/Y H:i"|default:"No date" }}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-edit" onclick="editTripForm({{ trip.id }}, {{ trip.bus.id }}, {{ trip.line.id }}, '{% if trip.date %}{{ trip.date|date:'Y-m-dTH:i' }}{% endif %}')"><i class="fas fa-edit"></i> Edit</button>
+                                    <a href="{% url 'mauribus_app:trip_delete' trip.id %}" class="btn btn-delete" onclick="return confirm('Delete this trip?')"><i class="fas fa-trash"></i> Delete</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" style="text-align: center; color: #999;">No trips yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Drivers Section -->
+        <div class="section-card" id="drivers">
+            <h2><i class="fas fa-user-tie"></i> Manage Drivers</h2>
+            <form method="POST" style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                {% csrf_token %}
+                <div class="form-group">
+                    <input type="hidden" id="driverId" name="driver_id">
+                    <input type="text" id="driverName" name="driver_name" placeholder="Driver Name" required>
+                    <input type="phone" id="driverPhone" name="phone" placeholder="Phone Number">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <span id="driverBtnText">Add Driver</span></button>
+                    <button type="reset" class="btn" style="background: #cbd5e1; color: #1e293b;" onclick="resetDriverForm()"><i class="fas fa-redo"></i> Clear</button>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-user-tie"></i> Name</th>
+                            <th><i class="fas fa-phone"></i> Phone</th>
+                            <th><i class="fas fa-bus"></i> Assigned Bus</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for driver in drivers_list %}
+                        <tr>
+                            <td><strong>{{ driver.name }}</strong></td>
+                            <td>{{ driver.phone|default:"N/A" }}</td>
+                            <td>{% for bus in buses_list %}{% if bus.driver.id == driver.id %}<span style="background: #667eea; color: white; padding: 4px 8px; border-radius: 4px;">{{ bus.name }}</span>{% endif %}{% endfor %}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-edit" onclick="editDriverForm({{ driver.id }}, '{{ driver.name }}', '{{ driver.phone|default:'' }}')"><i class="fas fa-edit"></i> Edit</button>
+                                    <a href="{% url 'mauribus_app:driver_delete' driver.id %}" class="btn btn-delete" onclick="return confirm('Delete this driver?')"><i class="fas fa-trash"></i> Delete</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" style="text-align: center; color: #999;">No drivers yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Users Section -->
+        <div class="section-card" id="users">
+            <h2><i class="fas fa-users"></i> Manage Users</h2>
+            <form method="POST" style="background: #f1f5f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                {% csrf_token %}
+                <div class="form-group">
+                    <input type="hidden" id="userId" name="user_id">
+                    <input type="email" id="userEmail" name="email" placeholder="User Email" required>
+                    <input type="password" id="userPassword" name="password" placeholder="Password">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 15px; background: white; border-radius: 6px; border: 1px solid #cbd5e1; flex: 1; min-width: 150px;">
+                        <input type="checkbox" name="is_staff" id="userIsStaff">
+                        <span>Is Admin</span>
+                    </label>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <span id="userBtnText">Add User</span></button>
+                    <button type="reset" class="btn" style="background: #cbd5e1; color: #1e293b;" onclick="resetUserForm()"><i class="fas fa-redo"></i> Clear</button>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-envelope"></i> Email</th>
+                            <th><i class="fas fa-shield"></i> Staff</th>
+                            <th><i class="fas fa-calendar-alt"></i> Joined</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users_list %}
+                        <tr>
+                            <td>{{ user.email }}</td>
+                            <td><span style="background: {% if user.is_staff %}#10b981{% else %}#ef4444{% endif %}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85em;">{% if user.is_staff %}Admin{% else %}User{% endif %}</span></td>
+                            <td>{{ user.date_joined|date:"d/m/Y" }}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-edit" onclick="editUserForm({{ user.id }}, '{{ user.email }}', {{ user.is_staff|lower }})"><i class="fas fa-edit"></i> Edit</button>
+                                    <a href="{% url 'mauribus_app:user_delete' user.id %}" class="btn btn-delete" onclick="return confirm('Delete this user?')"><i class="fas fa-trash"></i> Delete</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" style="text-align: center; color: #999;">No users yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BUS MODAL -->
+<div id="busModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="hideBusModal()">&times;</span>
+        <h2><i class="fas fa-bus"></i> <span id="busPrincipalTitle">Add Bus</span></h2>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" id="busId" name="bus_id">
+            <input type="text" id="busName" name="name" placeholder="Bus Name" required>
+            <input type="number" id="busCapacity" name="capacity" placeholder="Capacity" required>
+            <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> Save Bus</button>
+        </form>
+    </div>
+</div>
+
+<!-- LINE MODAL -->
+<div id="lineModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="hideLineModal()">&times;</span>
+        <h2><i class="fas fa-route"></i> <span id="linePrincipalTitle">Add Line</span></h2>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" id="lineId" name="line_id">
+            <input type="text" id="lineName" name="name" placeholder="Line Name" required>
+            <input type="text" id="lineStart" name="start" placeholder="Start Location" required>
+            <input type="text" id="lineEnd" name="end" placeholder="End Location" required>
+            <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> Save Line</button>
+        </form>
+    </div>
+</div>
+
+<!-- TRIP MODAL -->
+<div id="tripModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="hideTripModal()">&times;</span>
+        <h2><i class="fas fa-calendar-alt"></i> <span id="tripPrincipalTitle">Add Trip</span></h2>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" id="tripId" name="trip_id">
+            <select name="bus_id" id="tripBus" required>
+                <option value="">Select Bus</option>
+                {% for bus in buses_list %}<option value="{{ bus.id }}">{{ bus.name }}</option>{% endfor %}
+            </select>
+            <select name="line_id" id="tripLine" required>
+                <option value="">Select Line</option>
+                {% for line in lines_list %}<option value="{{ line.id }}">{{ line.name }}</option>{% endfor %}
+            </select>
+            <input type="datetime-local" name="date" id="tripDate">
+            <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> Save Trip</button>
+        </form>
+    </div>
+</div>
+
+<!-- USER MODAL -->
+<div id="userModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="hideUserModal()">&times;</span>
+        <h2><i class="fas fa-users"></i> <span id="userPrincipalTitle">Add User</span></h2>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" id="userId" name="user_id">
+            <input type="email" id="userEmail" name="email" placeholder="User Email" required>
+            <input type="password" id="userPassword" name="password" placeholder="Password">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 15px;">
+                <input type="checkbox" name="is_staff" id="userIsStaff">
+                <span>Is Admin</span>
+            </label>
+            <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-save"></i> Save User</button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // BUS FORM FUNCTIONS
+    function editBusForm(id, name, capacity, driverId, status) {
+        alert(`Editing Bus: ${name}`);
+        document.getElementById('busId').value = id;
+        document.getElementById('busName').value = name;
+        document.getElementById('busCapacity').value = capacity;
+        if (driverId && driverId !== 'null') {
+            document.getElementById('busDriver').value = driverId;
+        } else {
+            document.getElementById('busDriver').value = '';
+        }
+        if (status) {
+            document.getElementById('busStatus').value = status;
+        }
+        document.getElementById('busBtnText').textContent = 'Update Bus';
+    }
+
+    function resetBusForm() {
+        document.getElementById('busId').value = '';
+        document.getElementById('busName').value = '';
+        document.getElementById('busCapacity').value = '';
+        document.getElementById('busDriver').value = '';
+        document.getElementById('busStatus').value = 'service';
+        document.getElementById('busBtnText').textContent = 'Add Bus';
+    }
+
+    // LINE FORM FUNCTIONS
+    function editLineForm(id, name, start, end) {
+        alert(`Editing Line: ${name}`);
+        document.getElementById('lineId').value = id;
+        document.getElementById('lineName').value = name;
+        document.getElementById('lineStart').value = start;
+        document.getElementById('lineEnd').value = end;
+        document.getElementById('lineBtnText').textContent = 'Update Line';
+    }
+
+    function resetLineForm() {
+        document.getElementById('lineId').value = '';
+        document.getElementById('lineName').value = '';
+        document.getElementById('lineStart').value = '';
+        document.getElementById('lineEnd').value = '';
+        document.getElementById('lineBtnText').textContent = 'Add Line';
+    }
+
+    // TRIP FORM FUNCTIONS
+    function editTripForm(id, busId, lineId, date) {
+        alert(`Editing Trip ID: ${id}`);
+        document.getElementById('tripId').value = id;
+        document.getElementById('tripBus').value = busId;
+        document.getElementById('tripLine').value = lineId;
+        if (date) {
+            document.getElementById('tripDate').value = date;
+        }
+        document.getElementById('tripBtnText').textContent = 'Update Trip';
+    }
+
+    function resetTripForm() {
+        document.getElementById('tripId').value = '';
+        document.getElementById('tripBus').value = '';
+        document.getElementById('tripLine').value = '';
+        document.getElementById('tripDate').value = '';
+        document.getElementById('tripBtnText').textContent = 'Add Trip';
+    }
+
+    // USER FORM FUNCTIONS
+    function editUserForm(id, email, isStaff) {
+        alert(`Editing User: ${email}`);
+        document.getElementById('userId').value = id;
+        document.getElementById('userEmail').value = email;
+        document.getElementById('userPassword').value = '';
+        document.getElementById('userIsStaff').checked = isStaff;
+        document.getElementById('userBtnText').textContent = 'Update User';
+    }
+
+    function resetUserForm() {
+        document.getElementById('userId').value = '';
+        document.getElementById('userEmail').value = '';
+        document.getElementById('userPassword').value = '';
+        document.getElementById('userIsStaff').checked = false;
+        document.getElementById('userBtnText').textContent = 'Add User';
+    }
+
+    // DRIVER FORM FUNCTIONS
+    function editDriverForm(id, name, phone) {
+        alert(`Editing Driver: ${name}`);
+        document.getElementById('driverId').value = id;
+        document.getElementById('driverName').value = name;
+        document.getElementById('driverPhone').value = phone;
+        document.getElementById('driverBtnText').textContent = 'Update Driver';
+    }
+
+    function resetDriverForm() {
+        document.getElementById('driverId').value = '';
+        document.getElementById('driverName').value = '';
+        document.getElementById('driverPhone').value = '';
+        document.getElementById('driverBtnText').textContent = 'Add Driver';
+    }
+
+    // Map and Bus Status chart removed per user request
+
+    // Sidebar scroll links
+    document.querySelectorAll('.sidebar-menu a[href^="#"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const target = document.querySelector(link.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth' });
+        });
+    });
+
+    // Make form functions globally accessible
+    window.editBusForm = editBusForm;
+    window.resetBusForm = resetBusForm;
+    window.editLineForm = editLineForm;
+    window.resetLineForm = resetLineForm;
+    window.editTripForm = editTripForm;
+    window.resetTripForm = resetTripForm;
+    window.editDriverForm = editDriverForm;
+    window.resetDriverForm = resetDriverForm;
+    window.editUserForm = editUserForm;
+    window.resetUserForm = resetUserForm;
+});
+</script>
+
+<script>
+// Prevent back/forward cache showing protected admin pages after logout
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        // if page was restored from bfcache, force reload to ensure auth check
+        window.location.href = '/login/';
+    }
+    // some browsers don't set persisted; also detect navigation type
+    try {
+        const nav = performance.getEntriesByType('navigation')[0];
+        if (nav && nav.type === 'back_forward') {
+            window.location.href = '/login/';
+        }
+    } catch (e) {}
+});
+</script>
+
+<!-- Load libraries at the end of body -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// Initialize admin map
+document.addEventListener('DOMContentLoaded', function(){
+    const adminMap = L.map('adminMap').setView([14.7, -17.44], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(adminMap);
+
+    // Add buses
+    const buses = [
+        {% for bus in buses_list %}
+        {id: {{ bus.id }}, name: "{{ bus.name|escapejs }}", lat: {{ bus.lat }}, lng: {{ bus.lng }}, status: "{{ bus.status }}" }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    buses.forEach(b => {
+        const color = b.status === 'service' ? '#10b981' : (b.status === 'panne' ? '#ef4444' : '#f59e0b');
+        L.circleMarker([b.lat, b.lng], {
+            radius: 8, 
+            fillColor: color, 
+            color: 'white', 
+            weight: 2, 
+            opacity: 1, 
+            fillOpacity: 0.8
+        }).addTo(adminMap).bindPopup(`<b>🚌 ${b.name}</b><br>Statut: ${b.status}`);
+    });
+
+    // Add lines
+    const lines = [
+        {% for line in lines_list %}
+        {id: {{ line.id }}, name: "{{ line.name|escapejs }}", start_lat: {{ line.start_lat|default:'null' }}, start_lng: {{ line.start_lng|default:'null' }}, end_lat: {{ line.end_lat|default:'null' }}, end_lng: {{ line.end_lng|default:'null' }} }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    lines.forEach(l => {
+        if(l.start_lat && l.start_lng){
+            L.marker([l.start_lat, l.start_lng], {title: 'Départ'}).addTo(adminMap).bindPopup(`<b>${l.name}</b><br>Départ`);
+        }
+        if(l.end_lat && l.end_lng){
+            L.marker([l.end_lat, l.end_lng], {title: 'Arrivée'}).addTo(adminMap).bindPopup(`<b>${l.name}</b><br>Arrivée`);
+        }
+        if(l.start_lat && l.start_lng && l.end_lat && l.end_lng){
+            L.polyline([[l.start_lat, l.start_lng], [l.end_lat, l.end_lng]], {color: '#2563eb', weight: 2, opacity: 0.7}).addTo(adminMap);
+        }
+    });
+});
+</script>
+
+</body>
+</html>

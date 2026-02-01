@@ -1,0 +1,333 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tableau de bord - Chauffeur</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="" crossorigin="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background: linear-gradient(135deg, #f7f8fb 0%, #e5e9f2 100%); color: #111827; min-height: 100vh; }
+        .container { max-width: 1300px; margin: 0 auto; padding: 20px 16px; }
+        
+        header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 30px; 
+            background: white; 
+            padding: 20px 24px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        header h1 { font-size: 1.75rem; margin: 0; color: #1e293b; font-weight: 700; }
+        
+        nav { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        nav a { 
+            text-decoration: none; 
+            color: #6b7280; 
+            font-size: 0.95rem; 
+            transition: all 0.2s; 
+            padding: 10px 14px; 
+            border-radius: 8px;
+            border: 1px solid transparent;
+        }
+        nav a:hover { color: #2563eb; background: #f0f9ff; border-color: #bfdbfe; }
+        nav a:last-child { color: #ef4444; }
+        nav a:last-child:hover { background: #fee2e2; border-color: #fecaca; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        
+        .stat-card { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 4px solid;
+            transition: all 0.3s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+        
+        .stat-card.today { border-left-color: #667eea; }
+        .stat-card.assigned { border-left-color: #f093fb; }
+        .stat-card.completed { border-left-color: #43e97b; }
+        .stat-card.ongoing { border-left-color: #4facfe; }
+        
+        .stat-icon { font-size: 1.5rem; margin-right: 12px; }
+        .today .stat-icon { color: #667eea; }
+        .assigned .stat-icon { color: #f093fb; }
+        .completed .stat-icon { color: #43e97b; }
+        .ongoing .stat-icon { color: #4facfe; }
+        
+        .stat-label { font-size: 0.85rem; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; }
+        .stat-value { font-size: 2.2rem; font-weight: 700; color: #1e293b; }
+        
+        .panel { 
+            background: white; 
+            padding: 24px; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            border: 1px solid #f0f0f0;
+        }
+        .panel h2 { margin-top: 0; margin-bottom: 18px; color: #1e293b; font-size: 1.25rem; font-weight: 700; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 14px 12px; color: #6b7280; font-size: 0.75rem; font-weight: 700; background: #f8fafc; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 2px solid #e5e7eb; }
+        td { padding: 14px 12px; border-bottom: 1px solid #e5e7eb; }
+        tr:hover { background: #f9fafb; }
+        
+        .muted { color: #6b7280; font-size: 0.9rem; }
+        
+        .status-badge { 
+            display: inline-flex; 
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px; 
+            border-radius: 20px; 
+            font-size: 0.75rem; 
+            font-weight: 600;
+        }
+        .status-scheduled { background: #dbeafe; color: #1e40af; }
+        .status-started { background: #fef08a; color: #854d0e; }
+        .status-completed { background: #dcfce7; color: #166534; }
+        
+        .btn { 
+            padding: 10px 16px; 
+            border-radius: 8px; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 0.9rem; 
+            font-weight: 500; 
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-ghost { background: #f8fafc; border: 1px solid #e6eef9; color: #1e293b; }
+        .btn-ghost:hover { background: #f0f4f8; border-color: #cbd5e1; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-small { padding: 8px 14px; font-size: 0.85rem; }
+        
+        #map { height: 400px; border-radius: 12px; border: 1px solid #e6eef9; margin-bottom: 20px; }
+        
+        .sections { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        
+        .quick-actions { display: flex; flex-direction: column; gap: 12px; }
+        .quick-actions a { text-align: center; text-decoration: none; }
+        
+        .messaging-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .messaging-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4); }
+        .messaging-card i { font-size: 2rem; opacity: 0.9; }
+        .messaging-card-content h3 { margin: 0 0 4px; font-size: 1rem; }
+        .messaging-card-content p { margin: 0; font-size: 0.85rem; opacity: 0.9; }
+        
+        .empty-state { text-align: center; color: #6b7280; padding: 40px 20px; }
+        
+        @media(max-width: 768px) {
+            header { flex-direction: column; text-align: center; }
+            nav { justify-content: center; }
+            .sections { grid-template-columns: 1fr; }
+            .stat-card { padding: 16px; }
+            .stat-value { font-size: 1.75rem; }
+            #map { height: 300px; }
+            .messaging-card { flex-direction: column; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-bus"></i> Tableau de Bord</h1>
+            <nav>
+                <a href="{% url 'mauribus_app:driver_trips' %}"><i class="fas fa-map"></i> Mes Trajets</a>
+                <a href="{% url 'mauribus_app:driver_buses' %}"><i class="fas fa-bus"></i> Mes Bus</a>
+                <a href="{% url 'mauribus_app:driver_messages' %}"><i class="fas fa-envelope"></i> Messages</a>
+                <a href="{% url 'mauribus_app:driver_profile' %}"><i class="fas fa-user"></i> Mon Profil</a>
+                <a href="{% url 'mauribus_app:driver_logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+            </nav>
+        </header>
+
+        <!-- Statistiques -->
+        <div class="stats-grid">
+            <div class="stat-card today">
+                <div style="display: flex; align-items: center;">
+                    <i class="fas fa-calendar-day stat-icon"></i>
+                    <div>
+                        <div class="stat-label">Trajets aujourd'hui</div>
+                        <div class="stat-value">{{ trips_today }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card assigned">
+                <div style="display: flex; align-items: center;">
+                    <i class="fas fa-list stat-icon"></i>
+                    <div>
+                        <div class="stat-label">Assignés</div>
+                        <div class="stat-value">{{ trips_assigned }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card completed">
+                <div style="display: flex; align-items: center;">
+                    <i class="fas fa-check-circle stat-icon"></i>
+                    <div>
+                        <div class="stat-label">Complétés</div>
+                        <div class="stat-value">{{ trips_completed }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card ongoing">
+                <div style="display: flex; align-items: center;">
+                    <i class="fas fa-spinner stat-icon"></i>
+                    <div>
+                        <div class="stat-label">En cours</div>
+                        <div class="stat-value">{{ trips_ongoing }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Carte -->
+        <div class="panel">
+            <h2><i class="fas fa-map-marker-alt"></i> Carte de vos trajets</h2>
+            <div id="map"></div>
+        </div>
+
+        <!-- Contenu principal -->
+        <div class="sections">
+            <!-- Trajets récents -->
+            <div class="panel">
+                <h2><i class="fas fa-history"></i> Trajets Récents</h2>
+                {% if recent_trips %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-calendar"></i> Date</th>
+                            <th><i class="fas fa-route"></i> Ligne</th>
+                            <th><i class="fas fa-bus"></i> Bus</th>
+                            <th><i class="fas fa-status"></i> État</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trip in recent_trips %}
+                        <tr>
+                            <td class="muted">
+                                {% if trip.started_at %}
+                                    {{ trip.started_at|date:'d/m H:i' }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ trip.line.name }}</strong></td>
+                            <td>{{ trip.bus.name }}</td>
+                            <td>
+                                {% if trip.status == 'completed' %}
+                                    <span class="status-badge status-completed"><i class="fas fa-check"></i> Terminé</span>
+                                {% elif trip.status == 'ongoing' %}
+                                    <span class="status-badge status-started"><i class="fas fa-play"></i> En cours</span>
+                                {% else %}
+                                    <span class="status-badge status-scheduled"><i class="fas fa-clock"></i> Planifié</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state" style="padding: 40px 20px;">
+                    <i class="fas fa-inbox" style="font-size: 2rem; color: #cbd5e1;"></i>
+                    <p style="margin-top: 12px;">Aucun trajet pour le moment</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Panneau Actions Rapides -->
+            <div>
+                <!-- Messagerie -->
+                <a href="{% url 'mauribus_app:driver_messages' %}" class="messaging-card">
+                    <i class="fas fa-envelope"></i>
+                    <div class="messaging-card-content">
+                        <h3>Messages</h3>
+                        <p>Consultez vos messages</p>
+                    </div>
+                </a>
+
+                <!-- Actions Rapides -->
+                <div class="panel">
+                    <h2><i class="fas fa-rocket"></i> Actions Rapides</h2>
+                    <p class="muted" style="margin-bottom: 16px;">Accédez rapidement à vos fonctionnalités principales.</p>
+                    <div class="quick-actions">
+                        <a href="{% url 'mauribus_app:driver_trips' %}" class="btn btn-ghost">
+                            <i class="fas fa-route"></i> Voir mes trajets
+                        </a>
+                        <a href="{% url 'mauribus_app:driver_buses' %}" class="btn btn-ghost">
+                            <i class="fas fa-bus"></i> Mes autobus
+                        </a>
+                        <a href="{% url 'mauribus_app:driver_profile' %}" class="btn btn-primary">
+                            <i class="fas fa-user-circle"></i> Mon profil
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const lines = [
+            {% for line in lines %}
+            {
+                id: {{ line.id }},
+                name: "{{ line.name|escapejs }}",
+                start_lat: {{ line.start_lat|default:'null' }},
+                start_lng: {{ line.start_lng|default:'null' }},
+                end_lat: {{ line.end_lat|default:'null' }},
+                end_lng: {{ line.end_lng|default:'null' }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        const map = L.map('map');
+        let firstCoord = null;
+        for(const l of lines){
+            if(l.start_lat !== null && l.start_lng !== null){ firstCoord = [l.start_lat, l.start_lng]; break; }
+            if(l.end_lat !== null && l.end_lng !== null){ firstCoord = [l.end_lat, l.end_lng]; break; }
+        }
+        if(!firstCoord) firstCoord = [14.7, -17.44];
+        map.setView(firstCoord, 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        for(const l of lines){
+            if(l.start_lat && l.start_lng){ 
+                L.marker([l.start_lat, l.start_lng], {title:'Départ'}).addTo(map).bindPopup(`<b>${l.name}</b><br>📍 Départ`); 
+            }
+            if(l.end_lat && l.end_lng){ 
+                L.marker([l.end_lat, l.end_lng], {title:'Arrivée'}).addTo(map).bindPopup(`<b>${l.name}</b><br>📍 Arrivée`); 
+            }
+            if(l.start_lat && l.start_lng && l.end_lat && l.end_lng){
+                L.polyline([[l.start_lat,l.start_lng],[l.end_lat,l.end_lng]], {color:'#2563eb',weight:3,opacity:0.7}).addTo(map);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Mes Trajets - Chauffeur</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body{font-family:Inter,system-ui,Arial;background:#f7f8fb;color:#111827;margin:0;padding:0}
+        .container{max-width:1200px;margin:0 auto;padding:20px 16px}
+        header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;background:white;padding:20px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+        header h1{font-size:1.5rem;margin:0;color:#1e293b}
+        nav{display:flex;gap:16px;align-items:center}
+        nav a{text-decoration:none;color:#6b7280;font-size:0.95rem;transition:color 0.2s;padding:8px 12px;border-radius:6px}
+        nav a:hover{color:#2563eb;background:#f0f4f8}
+        nav a:last-child{color:#ef4444}
+        .panel{background:white;padding:20px;border-radius:12px;box-shadow:0 2px 4px rgba(0,0,0,0.05);margin-bottom:20px}
+        table{width:100%;border-collapse:collapse}
+        th{padding:12px;text-align:left;color:#6b7280;font-size:0.875rem;font-weight:600;background:#f8fafc}
+        td{padding:12px;border-top:1px solid #f3f4f6}
+        tr:hover{background:#f8fafc}
+        .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:500;transition:0.2s;font-size:0.85rem}
+        .btn-primary{background:#2563eb;color:white}
+        .btn-primary:hover{background:#1d4ed8}
+        .btn-ghost{background:#f8fafc;border:1px solid #e6eef9;color:#1e293b}
+        .btn-ghost:hover{background:#f0f4f8}
+        .btn-danger{background:#ef4444;color:white}
+        .btn-danger:hover{background:#dc2626}
+        .status-badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:600}
+        .status-scheduled{background:#dbeafe;color:#1e40af}
+        .status-started{background:#fef08a;color:#854d0e}
+        .status-completed{background:#dcfce7;color:#166534}
+        #map{height:320px;border-radius:12px;border:1px solid #e6eef9;margin-bottom:20px}
+        .report-box{margin-top:12px;padding:12px;background:#fef8f0;border:1px solid #fed7aa;border-radius:8px;display:none}
+        .report-box textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;min-height:80px;margin-bottom:10px;box-sizing:border-box;font-family:inherit}
+        .muted{color:#6b7280;font-size:0.9rem}
+        @media(max-width:768px){header{flex-direction:column;text-align:center;gap:12px}.table-scroll{overflow-x:auto}}
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1><i class="fas fa-route"></i> Mes Trajets</h1>
+        <nav>
+            <a href="{% url 'mauribus_app:driver_dashboard' %}"><i class="fas fa-home"></i> Tableau de bord</a>
+            <a href="{% url 'mauribus_app:driver_buses' %}"><i class="fas fa-bus"></i> Mes bus</a>
+            <a href="{% url 'mauribus_app:driver_profile' %}"><i class="fas fa-user"></i> Profil</a>
+            <a href="{% url 'mauribus_app:driver_logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+        </nav>
+    </header>
+
+    <div class="panel">
+        <h2 style="margin-top:0"><i class="fas fa-map-marker-alt"></i> Carte des trajets</h2>
+        <div id="map"></div>
+    </div>
+
+    <div class="panel">
+        <h2 style="margin-top:0"><i class="fas fa-list"></i> Liste de tous mes trajets</h2>
+        <div class="table-scroll">
+            <table>
+                <thead><tr><th>Date</th><th>Ligne</th><th>Bus</th><th>État</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for trip in trips %}
+                    <tr>
+                        <td class="muted">{{ trip.date|date:'d/m/Y H:i'|default:'-' }}</td>
+                        <td><strong>{{ trip.line.name }}</strong></td>
+                        <td>{{ trip.bus.name }}</td>
+                        <td>
+                            {% if trip.status == 'completed' %}
+                                <span class="status-badge status-completed"><i class="fas fa-check"></i> Terminé</span>
+                            {% elif trip.status == 'started' %}
+                                <span class="status-badge status-started"><i class="fas fa-play"></i> En cours</span>
+                            {% else %}
+                                <span class="status-badge status-scheduled"><i class="fas fa-clock"></i> Planifié</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="post" action="{% url 'mauribus_app:driver_action' %}" style="display:inline">{% csrf_token %}
+                                <input type="hidden" name="trip_id" value="{{ trip.id }}">
+                                {% if trip.status != 'started' and trip.status != 'completed' %}
+                                <button name="action" value="start" class="btn btn-primary" title="Marquer ce trajet comme commencé">Commencer</button>
+                                {% endif %}
+                                {% if trip.status == 'started' %}
+                                <button name="action" value="complete" class="btn btn-ghost" title="Marquer ce trajet comme terminé">Terminer</button>
+                                {% endif %}
+                            </form>
+                            <button type="button" class="btn btn-danger" onclick="toggleReport({{ trip.id }})" style="margin-left:6px" title="Signaler un problème">Signaler</button>
+                        </td>
+                    </tr>
+                    <tr id="report-row-{{ trip.id }}" style="display:none">
+                        <td colspan="5">
+                            <div class="report-box" id="r-{{ trip.id }}">
+                                <h4 style="margin-top:0">Signaler un problème sur ce trajet</h4>
+                                <form method="post" action="{% url 'mauribus_app:driver_action' %}">{% csrf_token %}
+                                    <input type="hidden" name="trip_id" value="{{ trip.id }}">
+                                    <input type="hidden" name="action" value="report">
+                                    <textarea name="report_message" placeholder="Décrivez le problème rencontré..." required></textarea>
+                                    <div style="display:flex;gap:8px">
+                                        <button class="btn btn-primary" type="submit">Envoyer rapport</button>
+                                        <button type="button" class="btn btn-ghost" onclick="toggleReport({{ trip.id }})">Annuler</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="muted" style="text-align:center;padding:32px">Aucun trajet assigné</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    function toggleReport(id){
+        const row = document.getElementById('report-row-' + id);
+        const box = document.getElementById('r-' + id);
+        if(row.style.display === 'none'){
+            row.style.display = '';
+            box.style.display = 'block';
+        } else {
+            row.style.display = 'none';
+            box.style.display = 'none';
+        }
+    }
+
+    const trips = [
+        {% for trip in trips %}
+        {
+            id: {{ trip.id }},
+            line: "{{ trip.line.name|escapejs }}",
+            start_lat: {{ trip.line.start_lat|default:'null' }},
+            start_lng: {{ trip.line.start_lng|default:'null' }},
+            end_lat: {{ trip.line.end_lat|default:'null' }},
+            end_lng: {{ trip.line.end_lng|default:'null' }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const map = L.map('map');
+    let first = null;
+    for(const t of trips){
+        if(t.start_lat && t.start_lng){ first = [t.start_lat,t.start_lng]; break; }
+        if(t.end_lat && t.end_lng){ first = [t.end_lat,t.end_lng]; break; }
+    }
+    if(!first) first = [14.7, -17.44];
+    map.setView(first, 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+    for(const t of trips){
+        if(t.start_lat && t.start_lng) L.marker([t.start_lat,t.start_lng], {title:'Départ'}).addTo(map).bindPopup(`<b>${t.line}</b><br>Départ`);
+        if(t.end_lat && t.end_lng) L.marker([t.end_lat,t.end_lng], {title:'Arrivée'}).addTo(map).bindPopup(`<b>${t.line}</b><br>Arrivée`);
+        if(t.start_lat && t.start_lng && t.end_lat && t.end_lng){
+            L.polyline([[t.start_lat,t.start_lng],[t.end_lat,t.end_lng]],{color:'#2563eb',weight:3,opacity:0.7}).addTo(map);
+        }
+    }
+</script>
+</body>
+</html>

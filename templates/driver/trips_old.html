@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mes Trajets</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+body{font-family:Inter,system-ui,Arial;background:#f7f8fb;color:#111827;margin:0}
+.container{max-width:1100px;margin:28px auto;padding:0 16px}
+.panel{background:#fff;padding:12px;border-radius:10px;border:1px solid #eef2ff}
+table{width:100%;border-collapse:collapse}
+th{padding:10px;text-align:left;color:#6b7280}
+td{padding:10px;border-top:1px solid #f3f4f6}
+.btn{padding:6px 10px;border-radius:8px;border:none}
+.btn-primary{background:#2563eb;color:#fff}
+.btn-ghost{background:#f8fafc;border:1px solid #e6eef9}
+.report-box{margin-top:8px}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Mes Trajets</h1>
+    <div id="map" style="height:260px;border-radius:10px;border:1px solid #e6eef9;margin-bottom:12px"></div>
+    <div class="panel">
+        <table>
+            <thead><tr><th>Date</th><th>Ligne</th><th>Bus</th><th>État</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for trip in trips %}
+                <tr>
+                    <td>{{ trip.date|date:'d/m/Y H:i'|default:'-' }}</td>
+                    <td>{{ trip.line.name }}</td>
+                    <td>{{ trip.bus.name }}</td>
+                    <td>{% if trip.status == 'completed' %}Terminé{% elif trip.status == 'started' %}En cours{% else %}{{ trip.get_status_display }}{% endif %}</td>
+                    <td>
+                        <form method="post" action="{% url 'mauribus_app:driver_action' %}" style="display:inline">{% csrf_token %}
+                            <input type="hidden" name="trip_id" value="{{ trip.id }}">
+                            {% if trip.status != 'started' and trip.status != 'completed' %}
+                            <button name="action" value="start" class="btn btn-primary">Marquer commencé</button>
+                            {% endif %}
+                            {% if trip.status == 'started' %}
+                            <button name="action" value="complete" class="btn btn-ghost">Marquer terminé</button>
+                            {% endif %}
+                        </form>
+                        <form method="post" action="{% url 'mauribus_app:driver_action' %}" style="display:inline;margin-left:6px">{% csrf_token %}
+                            <input type="hidden" name="trip_id" value="{{ trip.id }}">
+                            <input type="hidden" name="action" value="report">
+                            <button type="button" onclick="document.getElementById('r-{{ trip.id }}').style.display='block'" class="btn">Signaler problème</button>
+                        </form>
+                        <div id="r-{{ trip.id }}" class="report-box" style="display:none">
+                            <form method="post" action="{% url 'mauribus_app:driver_action' %}">{% csrf_token %}
+                                <input type="hidden" name="trip_id" value="{{ trip.id }}">
+                                <input type="hidden" name="action" value="report">
+                                <textarea name="report_message" placeholder="Décrivez le problème" style="width:100%;min-height:60px;margin-top:6px;border:1px solid #e6eef9;padding:8px;border-radius:6px"></textarea>
+                                <div style="margin-top:6px"><button class="btn btn-primary" type="submit">Envoyer rapport</button> <button type="button" class="btn btn-ghost" onclick="document.getElementById('r-{{ trip.id }}').style.display='none'">Annuler</button></div>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5">Aucun trajet assigné</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const trips = [
+        {% for trip in trips %}
+        {
+            id: {{ trip.id }},
+            line: "{{ trip.line.name|escapejs }}",
+            start_lat: {{ trip.line.start_lat|default:'null' }},
+            start_lng: {{ trip.line.start_lng|default:'null' }},
+            end_lat: {{ trip.line.end_lat|default:'null' }},
+            end_lng: {{ trip.line.end_lng|default:'null' }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const map = L.map('map');
+    let first = null;
+    for(const t of trips){
+        if(t.start_lat && t.start_lng){ first = [t.start_lat,t.start_lng]; break; }
+        if(t.end_lat && t.end_lng){ first = [t.end_lat,t.end_lng]; break; }
+    }
+    if(!first) first = [14.7, -17.44];
+    map.setView(first, 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+    for(const t of trips){
+        if(t.start_lat && t.start_lng) L.marker([t.start_lat,t.start_lng]).addTo(map).bindPopup(t.line+" — Départ");
+        if(t.end_lat && t.end_lng) L.marker([t.end_lat,t.end_lng]).addTo(map).bindPopup(t.line+" — Arrivée");
+        if(t.start_lat && t.start_lng && t.end_lat && t.end_lng){
+            L.polyline([[t.start_lat,t.start_lng],[t.end_lat,t.end_lng]],{color:'#2563eb'}).addTo(map);
+        }
+    }
+</script>
+</body>
+</html>

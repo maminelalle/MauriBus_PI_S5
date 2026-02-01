@@ -1,0 +1,159 @@
+{% extends 'citizen/base.html' %}
+{% load static %}
+{% block title %}Dashboard Public - MauriBus{% endblock %}
+{% block content %}
+<style>
+  .hero { background: linear-gradient(135deg,#eef2ff,#f8fafc); border:1px solid #e2e8f0; padding:20px; border-radius:16px; display:grid; grid-template-columns: 1.4fr 1fr; gap:16px; align-items:center; margin-bottom:18px; }
+  .hero h2 { font-size:1.6rem; margin-bottom:6px; }
+  .hero p { color:#64748b; margin-bottom:14px; }
+  .hero img { width:100%; border-radius:14px; box-shadow:0 10px 20px rgba(15,23,42,0.12); }
+
+  .filters { display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:10px; }
+  .filters input, .filters select { width:100%; padding:10px; border-radius:10px; border:1px solid #e2e8f0; }
+
+  .trip-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:14px; }
+  .trip-card { background:#fff; border-radius:14px; padding:14px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px; }
+  .trip-time { font-weight:700; }
+  .badge { padding:4px 8px; border-radius:999px; font-size:0.75rem; font-weight:600; }
+  .status-ok { background:#dcfce7; color:#166534; }
+  .status-warn { background:#fef9c3; color:#854d0e; }
+  .status-done { background:#e0f2fe; color:#075985; }
+  .status-stop { background:#fee2e2; color:#991b1b; }
+
+  #map { height:360px; border-radius:14px; border:1px solid #e2e8f0; }
+
+  @media(max-width: 900px){
+    .hero { grid-template-columns: 1fr; }
+    .filters { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="hero">
+  <div>
+    <h2>Bienvenue !</h2>
+    <p>Consultez les trajets disponibles et les horaires en temps réel.</p>
+    {% if request.user.is_authenticated and request.user.is_citizen %}
+      <div class="card" style="margin-bottom:12px;">
+        <strong>Bienvenue, {{ request.user.email }}</strong>
+      </div>
+    {% endif %}
+    <div class="filters">
+      <input type="text" id="searchInput" placeholder="Rechercher un trajet" />
+      <select id="dayFilter">
+        <option value="all">Aujourd'hui / Demain</option>
+        <option value="today">Aujourd'hui</option>
+        <option value="tomorrow">Demain</option>
+      </select>
+      <input type="text" id="fromFilter" placeholder="Départ" />
+      <input type="text" id="toFilter" placeholder="Arrivée" />
+      <button class="btn btn-primary" onclick="filterTrips()">Rechercher</button>
+    </div>
+  </div>
+  <img src="{% static 'images/citizen.png' %}" alt="MauriBus" />
+</div>
+
+<div class="grid" style="margin-bottom:18px;">
+  <div class="card"><h3>Lignes</h3><div style="font-size:1.8rem; font-weight:700;">{{ lines_count }}</div></div>
+  <div class="card"><h3>Trajets aujourd'hui</h3><div style="font-size:1.8rem; font-weight:700;">{{ trips_today }}</div></div>
+  <div class="card"><h3>Total trajets</h3><div style="font-size:1.8rem; font-weight:700;">{{ trips_total }}</div></div>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+  <h3>Carte des itinéraires</h3>
+  <div id="map"></div>
+  <p class="muted" style="margin-top:8px;">Cliquez sur un trajet pour voir son itinéraire.</p>
+</div>
+
+<div class="card" style="margin-bottom:12px;">
+  <h3>Trajets disponibles</h3>
+</div>
+
+<div class="trip-grid" id="tripGrid">
+  {% for t in trip_cards %}
+  <div class="trip-card" data-id="{{ t.id }}" data-start="{{ t.start }}" data-end="{{ t.end }}"
+       data-start-lat="{{ t.start_lat }}" data-start-lng="{{ t.start_lng }}"
+       data-end-lat="{{ t.end_lat }}" data-end-lng="{{ t.end_lng }}"
+       data-departure="{{ t.departure|date:'Y-m-d H:i' }}">
+    <div class="trip-time">{{ t.departure|date:'H:i' }} → {{ t.arrival|date:'H:i' }}</div>
+    <div><strong>{{ t.start }}</strong> → <strong>{{ t.end }}</strong></div>
+    <div class="muted">Durée: {{ t.duration }} min</div>
+    <div><span class="badge {{ t.status_class }}">{{ t.status_label }}</span></div>
+    <div style="display:flex; gap:8px;">
+      <a class="btn btn-ghost" href="{% url 'mauribus_app:citizen_trip_detail' t.id %}">Voir itinéraire</a>
+      <button class="btn btn-primary" onclick="focusTrip(this)">Voir sur carte</button>
+    </div>
+  </div>
+  {% empty %}
+  <div class="card"><div class="muted">Aucun trajet disponible</div></div>
+  {% endfor %}
+</div>
+
+<footer class="card" style="margin-top:18px; text-align:center;">
+  <div class="muted">MauriBus • v1.0</div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const map = L.map('map');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  map.setView([14.7, -17.44], 6);
+
+  let routeLayer = null;
+  let startMarker = null;
+  let endMarker = null;
+
+  function focusTrip(btn){
+    const card = btn.closest('.trip-card');
+    const slat = parseFloat(card.dataset.startLat);
+    const slng = parseFloat(card.dataset.startLng);
+    const elat = parseFloat(card.dataset.endLat);
+    const elng = parseFloat(card.dataset.endLng);
+
+    if (isNaN(slat) || isNaN(slng) || isNaN(elat) || isNaN(elng)) {
+      return;
+    }
+
+    if (routeLayer) { map.removeLayer(routeLayer); }
+    if (startMarker) { map.removeLayer(startMarker); }
+    if (endMarker) { map.removeLayer(endMarker); }
+
+    startMarker = L.marker([slat, slng]).addTo(map).bindPopup('Départ');
+    endMarker = L.marker([elat, elng]).addTo(map).bindPopup('Arrivée');
+    routeLayer = L.polyline([[slat, slng],[elat, elng]], { color:'#2563eb', weight:4, opacity:0.8 }).addTo(map);
+    map.fitBounds(routeLayer.getBounds(), { padding: [20,20] });
+  }
+
+  function filterTrips(){
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const from = document.getElementById('fromFilter').value.toLowerCase();
+    const to = document.getElementById('toFilter').value.toLowerCase();
+    const day = document.getElementById('dayFilter').value;
+    const cards = document.querySelectorAll('.trip-card');
+
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+
+    cards.forEach(card => {
+      const start = (card.dataset.start || '').toLowerCase();
+      const end = (card.dataset.end || '').toLowerCase();
+      const dep = card.dataset.departure || '';
+      let show = true;
+
+      if (q && !(start.includes(q) || end.includes(q))) show = false;
+      if (from && !start.includes(from)) show = false;
+      if (to && !end.includes(to)) show = false;
+
+      if (day !== 'all' && dep) {
+        const depDate = new Date(dep.replace(' ', 'T'));
+        const isToday = depDate.toDateString() === today.toDateString();
+        const isTomorrow = depDate.toDateString() === tomorrow.toDateString();
+        if (day === 'today' && !isToday) show = false;
+        if (day === 'tomorrow' && !isTomorrow) show = false;
+      }
+
+      card.style.display = show ? 'flex' : 'none';
+    });
+  }
+</script>
+{% endblock %}

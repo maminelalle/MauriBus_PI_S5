@@ -1,0 +1,312 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Messagerie - Chauffeur</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Inter, system-ui, Arial; background: linear-gradient(135deg, #f7f8fb 0%, #e5e9f2 100%); color: #111827; min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        
+        .header { margin-bottom: 30px; }
+        .header h1 { font-size: 2rem; color: #1e293b; font-weight: 700; margin-bottom: 8px; }
+        .header p { color: #6b7280; font-size: 0.95rem; }
+        
+        .nav-links { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+        .nav-links a { padding: 10px 16px; background: white; border-radius: 8px; text-decoration: none; color: #2563eb; font-weight: 500; border: 1px solid #e5e7eb; transition: all 0.2s; }
+        .nav-links a:hover { background: #f0f9ff; border-color: #2563eb; }
+        
+        .messages-panel {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .messages-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .messages-header h2 { font-size: 1.3rem; margin-bottom: 4px; }
+        .messages-header p { opacity: 0.9; font-size: 0.9rem; }
+        
+        .messages-list {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 0;
+        }
+        
+        .message-item {
+            padding: 18px;
+            border-bottom: 1px solid #e5e7eb;
+            background: white;
+            transition: all 0.2s;
+        }
+        .message-item:last-child { border-bottom: none; }
+        .message-item:hover { background: #f9fafb; }
+        
+        .message-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+        
+        .message-from {
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .message-from i { color: #667eea; font-size: 1.1rem; }
+        
+        .message-time {
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+        
+        .message-badges {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .badge-broadcast {
+            background: #fef3c7;
+            color: #b45309;
+        }
+        
+        .badge-unread {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .badge-trip {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        
+        .message-content {
+            color: #374151;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin: 12px 0;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .message-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.85rem;
+            color: #6b7280;
+            flex-wrap: wrap;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .meta-item i { color: #9ca3af; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #6b7280;
+        }
+        
+        .empty-state i { font-size: 4rem; color: #cbd5e1; margin-bottom: 16px; }
+        .empty-state h2 { font-size: 1.5rem; color: #475569; margin-bottom: 8px; }
+        .empty-state p { font-size: 0.95rem; }
+        
+        .action-buttons {
+            padding: 20px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        
+        .btn-secondary { background: #e5e7eb; color: #374151; }
+        .btn-secondary:hover { background: #d1d5db; }
+        
+        .mark-read-btn {
+            margin-left: auto;
+            padding: 6px 12px;
+            background: #f0f9ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .mark-read-btn:hover { background: #e0f2fe; }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.5rem; }
+            .nav-links { flex-direction: column; }
+            .nav-links a { width: 100%; }
+            .message-header-row { flex-direction: column; }
+            .message-badges { order: 3; }
+            .action-buttons { flex-direction: column; }
+            .action-buttons .btn { width: 100%; justify-content: center; }
+            .mark-read-btn { margin-left: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1><i class="fas fa-envelope" style="margin-right: 12px;"></i>Messagerie</h1>
+        <p>Consultez vos messages de l'administration</p>
+        <div class="nav-links">
+            <a href="{% url 'mauribus_app:driver_dashboard' %}"><i class="fas fa-chart-line"></i> Tableau de Bord</a>
+            <a href="{% url 'mauribus_app:driver_trips' %}"><i class="fas fa-map"></i> Mes Trajets</a>
+            <a href="{% url 'mauribus_app:driver_buses' %}"><i class="fas fa-bus"></i> Mes Bus</a>
+            <a href="{% url 'mauribus_app:driver_profile' %}"><i class="fas fa-user"></i> Mon Profil</a>
+            <a href="{% url 'mauribus_app:driver_logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+        </div>
+    </div>
+
+    <div class="messages-panel">
+        <div class="messages-header">
+            <h2><i class="fas fa-comments"></i> Messages Reçus</h2>
+            <p>Vous avez reçu {{ messages|length }} message(s)</p>
+        </div>
+
+        {% if messages %}
+        <div class="messages-list">
+            {% for message in messages %}
+            <div class="message-item">
+                <div class="message-header-row">
+                    <div class="message-from">
+                        <i class="fas fa-user-shield"></i>
+                        Administration
+                    </div>
+                    <div class="message-time">
+                        <i class="fas fa-clock"></i>
+                        {{ message.created_at|date:"d/m/Y H:i" }}
+                    </div>
+                    <div class="message-badges">
+                        {% if message.broadcast %}
+                        <span class="badge badge-broadcast"><i class="fas fa-broadcast-tower"></i> Diffusion</span>
+                        {% endif %}
+                        {% if not message.is_read %}
+                        <span class="badge badge-unread"><i class="fas fa-envelope"></i> Non lu</span>
+                        {% endif %}
+                        {% if message.trip %}
+                        <span class="badge badge-trip"><i class="fas fa-map"></i> Trajet {{ message.trip.id }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="message-content">
+                    {{ message.content }}
+                </div>
+
+                {% if message.trip %}
+                <div class="message-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-bus"></i>
+                        <strong>Bus:</strong> {{ message.trip.bus.name }}
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-route"></i>
+                        <strong>Ligne:</strong> {{ message.trip.line.name }}
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <strong>Statut:</strong>
+                        {% if message.trip.status == 'pending' %}
+                            <span style="color: #b45309;">En attente</span>
+                        {% elif message.trip.status == 'ongoing' %}
+                            <span style="color: #1e40af;">En cours</span>
+                        {% elif message.trip.status == 'completed' %}
+                            <span style="color: #16a34a;">Complété</span>
+                        {% else %}
+                            {{ message.trip.get_status_display }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="action-buttons">
+            <a href="{% url 'mauribus_app:driver_dashboard' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour au Tableau de Bord
+            </a>
+            <button class="mark-read-btn" onclick="markAllAsRead()">
+                <i class="fas fa-check-double"></i> Marquer tous comme lus
+            </button>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <h2>Aucun message</h2>
+            <p>Vous n'avez pas reçu de message pour le moment.</p>
+            <div style="margin-top: 30px;">
+                <a href="{% url 'mauribus_app:driver_dashboard' %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Retour au Tableau de Bord
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function markAllAsRead() {
+    // Cette fonction peut être implémentée avec AJAX pour marquer tous les messages comme lus
+    alert('Tous les messages ont été marqués comme lus.');
+}
+</script>
+</body>
+</html>
